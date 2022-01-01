@@ -12,7 +12,19 @@ fn main() {
     // Inicializa o Scanner
     let mut scanner = Scanner::new(file);
 
-    while let Some(token) = scanner.scan() {
-        println!("{}", token.c);
+    loop {
+        let token = scanner.scan();
+
+        let class = token.class;
+        let lexeme = token.lexeme;
+        let tk_type = match token.tk_type {
+            Some(s) => s,
+            None => String::from("Nulo"),
+        };
+        println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
+
+        if class.eq("EOF") {
+            break;
+        }
     }
 }

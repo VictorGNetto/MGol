@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+use super::lexical_automaton::*;
 use super::Token;
 
 pub struct Scanner {
@@ -18,14 +19,32 @@ impl Scanner {
         Scanner { file, line, cursor }
     }
 
-    pub fn scan(&mut self) -> Option<Token> {
-        if let Some(c) = self.read_char() {
-            return Some(Token { c });
+    pub fn scan(&mut self) -> Token {
+        let mut lexeme = String::new();
+        let mut automaton = Automaton::new();
+
+        while let Some(c) = self.read_char() {
+            automaton.advance(c);
+
+            if automaton.go_back {
+                self.put_back();
+            } else {
+                lexeme.push(c);
+            }
+
+            if automaton.done {
+                return self.build_token(lexeme);
+            }
         }
 
-        None
+        return Token {
+            class: String::from("EOF"),
+            lexeme: String::from("EOF"),
+            tk_type: None,
+        };
     }
 
+    // return a char by consuming the internal BufReader file
     fn read_char(&mut self) -> Option<char> {
         if self.cursor == self.line.len() {
             self.cursor = 0;
@@ -41,5 +60,20 @@ impl Scanner {
         self.cursor += 1;
 
         Some(c)
+    }
+
+    // Put the last read character into the 'stream', making it
+    // available once again for another read_char()
+    fn put_back(&mut self) {
+        self.cursor -= 1;
+    }
+
+    // A Token fabric
+    fn build_token(&mut self, lexeme: String) -> Token {
+        return Token {
+            class: String::from("..."),
+            lexeme: lexeme,
+            tk_type: None,
+        };
     }
 }
