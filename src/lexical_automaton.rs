@@ -9,7 +9,7 @@ pub enum AutomatonState {
 pub enum Action {
     None,
     GoBack,
-    UpdateLexeme,
+    Standard,
     ClearLexeme,
     ShowError,
 }
@@ -30,177 +30,137 @@ impl Automaton {
     }
 
     pub fn advance(&mut self, c: char) {
+        self.action = Action::Standard;
+
         match self.state {
-            AutomatonState::Initial => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(1), Action::UpdateLexeme),
-                    '"' => self.go_to_state(AutomatonState::NonAccept('d'), Action::UpdateLexeme),
-                    'a'..='z' | 'A'..='Z' => {
-                        self.go_to_state(AutomatonState::Accept(5), Action::UpdateLexeme);
-                    }
-                    '{' => self.go_to_state(AutomatonState::NonAccept('e'), Action::None),
-                    '<' => self.go_to_state(AutomatonState::Accept(8), Action::UpdateLexeme),
-                    '>' => self.go_to_state(AutomatonState::Accept(12), Action::UpdateLexeme),
-                    '=' => self.go_to_state(AutomatonState::Accept(14), Action::UpdateLexeme),
-                    '+' | '-' | '*' | '/' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(15), Action::UpdateLexeme)
-                    }
-                    '(' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(16), Action::UpdateLexeme);
-                    }
-                    ')' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(17), Action::UpdateLexeme);
-                    }
-                    ';' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(18), Action::UpdateLexeme);
-                    }
-                    '\n' | '\r' | ' ' => self.go_to_state(AutomatonState::Initial, Action::None),
-                    _ => self.error(),
+            AutomatonState::Initial => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(1),
+                '"' => self.state = AutomatonState::NonAccept('d'),
+                'a'..='z' | 'A'..='Z' => self.state = AutomatonState::Accept(5),
+                '{' => self.state = AutomatonState::NonAccept('e'),
+                '<' => self.state = AutomatonState::Accept(8),
+                '>' => self.state = AutomatonState::Accept(12),
+                '=' => self.state = AutomatonState::Accept(14),
+                '+' | '-' | '*' | '/' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(15);
                 }
-                return;
-            }
-            AutomatonState::Accept(1) => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(1), Action::UpdateLexeme),
-                    '.' => self.go_to_state(AutomatonState::NonAccept('a'), Action::UpdateLexeme),
-                    'e' | 'E' => {
-                        self.go_to_state(AutomatonState::NonAccept('b'), Action::UpdateLexeme);
-                    }
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                '(' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(16);
                 }
-                return;
-            }
-            AutomatonState::Accept(2) => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(2), Action::UpdateLexeme),
-                    'e' | 'E' => {
-                        self.go_to_state(AutomatonState::NonAccept('b'), Action::UpdateLexeme);
-                    }
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                ')' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(17);
                 }
-                return;
-            }
-            AutomatonState::Accept(3) => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(3), Action::UpdateLexeme),
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                ';' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(18);
                 }
-                return;
-            }
-            AutomatonState::Accept(5) => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(5), Action::UpdateLexeme),
-                    'a'..='z' | 'A'..='Z' => {
-                        self.go_to_state(AutomatonState::Accept(5), Action::UpdateLexeme);
-                    }
-                    '_' => self.go_to_state(AutomatonState::Accept(5), Action::UpdateLexeme),
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                '\n' | '\r' | ' ' => {
+                    self.state = AutomatonState::Initial;
+                    self.action = Action::None;
                 }
-                return;
-            }
-            AutomatonState::Accept(8) => {
-                match c {
-                    '=' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(9), Action::UpdateLexeme);
-                    }
-                    '>' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(10), Action::UpdateLexeme);
-                    }
-                    '-' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(11), Action::UpdateLexeme);
-                    }
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                _ => self.error(),
+            },
+            AutomatonState::Accept(1) => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(1),
+                '.' => self.state = AutomatonState::NonAccept('a'),
+                'e' | 'E' => self.state = AutomatonState::NonAccept('b'),
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
                 }
-                return;
-            }
-            AutomatonState::Accept(12) => {
-                match c {
-                    '=' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(13), Action::UpdateLexeme);
-                    }
-                    c if is_in_alphabet(c) => {
-                        self.done = true;
-                        self.action = Action::GoBack;
-                    }
-                    _ => self.error(),
+                _ => self.error(),
+            },
+            AutomatonState::Accept(2) => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(2),
+                'e' | 'E' => self.state = AutomatonState::NonAccept('b'),
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
                 }
-                return;
-            }
-            AutomatonState::NonAccept('a') => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(2), Action::UpdateLexeme),
-                    _ => self.error(),
+                _ => self.error(),
+            },
+            AutomatonState::Accept(3) => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(3),
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
                 }
-                return;
-            }
-            AutomatonState::NonAccept('b') => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(3), Action::UpdateLexeme),
-                    '+' | '-' => {
-                        self.go_to_state(AutomatonState::NonAccept('c'), Action::UpdateLexeme);
-                    }
-                    _ => self.error(),
+                _ => self.error(),
+            },
+            AutomatonState::Accept(5) => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(5),
+                'a'..='z' | 'A'..='Z' => self.state = AutomatonState::Accept(5),
+                '_' => self.state = AutomatonState::Accept(5),
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
                 }
-                return;
-            }
-            AutomatonState::NonAccept('c') => {
-                match c {
-                    '0'..='9' => self.go_to_state(AutomatonState::Accept(3), Action::UpdateLexeme),
-                    _ => self.error(),
+                _ => self.error(),
+            },
+            AutomatonState::Accept(8) => match c {
+                '=' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(9);
                 }
-                return;
-            }
-            AutomatonState::NonAccept('d') => {
-                match c {
-                    '"' => {
-                        self.done = true;
-                        self.go_to_state(AutomatonState::Accept(4), Action::UpdateLexeme);
-                    }
-                    c if is_in_alphabet(c) => {
-                        self.go_to_state(AutomatonState::NonAccept('d'), Action::UpdateLexeme);
-                    }
-                    _ => self.error(),
+                '>' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(10);
                 }
-                return;
-            }
-            AutomatonState::NonAccept('e') => {
-                match c {
-                    '}' => self.go_to_state(AutomatonState::Initial, Action::None),
-                    c if is_in_alphabet(c) => {
-                        self.go_to_state(AutomatonState::NonAccept('e'), Action::None);
-                    }
-                    _ => self.error(),
+                '-' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(11);
                 }
-                return;
-            }
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
+                }
+                _ => self.error(),
+            },
+            AutomatonState::Accept(12) => match c {
+                '=' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(13);
+                }
+                c if is_in_alphabet(c) => {
+                    self.done = true;
+                    self.action = Action::GoBack;
+                }
+                _ => self.error(),
+            },
+            AutomatonState::NonAccept('a') => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(2),
+                _ => self.error(),
+            },
+            AutomatonState::NonAccept('b') => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(3),
+                '+' | '-' => self.state = AutomatonState::NonAccept('c'),
+                _ => self.error(),
+            },
+            AutomatonState::NonAccept('c') => match c {
+                '0'..='9' => self.state = AutomatonState::Accept(3),
+                _ => self.error(),
+            },
+            AutomatonState::NonAccept('d') => match c {
+                '"' => {
+                    self.done = true;
+                    self.state = AutomatonState::Accept(4);
+                }
+                c if is_in_alphabet(c) => {
+                    self.state = AutomatonState::NonAccept('d');
+                }
+                _ => self.error(),
+            },
+            AutomatonState::NonAccept('e') => match c {
+                '}' => {
+                    self.state = AutomatonState::Initial;
+                    self.action = Action::ClearLexeme;
+                }
+                c if is_in_alphabet(c) => self.state = AutomatonState::NonAccept('e'),
+                _ => self.error(),
+            },
             _ => (),
         }
     }
@@ -211,12 +171,6 @@ impl Automaton {
         self.state = AutomatonState::Error;
         self.done = true;
         self.action = Action::ShowError;
-    }
-
-    // Puts the automaton in a new state and set a new action to be performed
-    fn go_to_state(&mut self, state: AutomatonState, action: Action) {
-        self.state = state;
-        self.action = action;
     }
 }
 
@@ -231,7 +185,7 @@ fn is_in_alphabet(c: char) -> bool {
         '[' | ']' => true,
         '{' | '}' => true,
         '+' | '-' | '*' | '/' => true,
-        '!' | '?' | '\\'  => true,
+        '!' | '?' | '\\' => true,
         '"' | '\'' => true,
         '\n' | '\r' | ' ' => true,
         _ => false,

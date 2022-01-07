@@ -1,5 +1,5 @@
-use std::fs::File;
 use mgol::scanner::Scanner;
+use std::fs::File;
 
 fn main() {
     // Abre o arquivo
@@ -16,7 +16,10 @@ fn main() {
         let token = scanner.scan();
 
         let class = token.class;
-        let lexeme = token.lexeme;
+        let lexeme = match token.lexeme {
+            Some(s) => s,
+            None => String::from("Nulo"),
+        };
         let tk_type = match token.tk_type {
             Some(s) => s,
             None => String::from("Nulo"),

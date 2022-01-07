@@ -29,11 +29,11 @@ impl Scanner {
 
             match automaton.action {
                 Action::GoBack => self.put_back(),
-                Action::UpdateLexeme => lexeme.push(c),
+                Action::Standard => lexeme.push(c),
                 Action::ClearLexeme => lexeme.clear(),
                 Action::ShowError => {
                     println!("Error sintático na linha 4, coluna {}: {}", self.cursor, c);
-                },
+                }
                 Action::None => (),
             }
 
@@ -44,7 +44,7 @@ impl Scanner {
 
         Token {
             class: String::from("EOF"),
-            lexeme: String::from("EOF"),
+            lexeme: Some(String::from("EOF")),
             tk_type: None,
         }
     }
@@ -77,92 +77,83 @@ impl Scanner {
     fn build_token(&mut self, lexeme: String, automaton_state: AutomatonState) -> Token {
         // println!(">>> {:?}", automaton_state);
 
+        let mut class = String::new();
+        let mut lexeme = Some(lexeme);
+        let mut tk_type = Some(String::new());
+
         match automaton_state {
-            AutomatonState::Accept(1) => Token {
-                class: String::from("Num"),
-                lexeme,
-                tk_type: Some(String::from("inteiro")),
+            AutomatonState::Accept(1) => {
+                class = String::from("Num");
+                tk_type = Some(String::from("inteiro"));
             },
-            AutomatonState::Accept(2) | AutomatonState::Accept(3) => Token {
-                class: String::from("Num"),
-                lexeme,
-                tk_type: Some(String::from("real")),
+            AutomatonState::Accept(2) | AutomatonState::Accept(3) => {
+                class = String::from("Num");
+                tk_type = Some(String::from("real"));
             },
-            AutomatonState::Accept(4) => Token {
-                class: String::from("Lit"),
-                lexeme,
-                tk_type: Some(String::from("literal")),
+            AutomatonState::Accept(4) => {
+                class = String::from("Lit");
+                tk_type = Some(String::from("literal"));
             },
-            AutomatonState::Accept(5) => Token {
-                class: String::from("id"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(5) => {
+                class = String::from("id");
+                tk_type = None;
             },
-            AutomatonState::Accept(8) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(8) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(9) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(9) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(10) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(10) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(11) => Token {
-                class: String::from("RCB"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(11) => {
+                class = String::from("RCB");
+                tk_type = None;
             },
-            AutomatonState::Accept(12) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(12) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(13) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(13) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(14) => Token {
-                class: String::from("OPR"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(14) => {
+                class = String::from("OPR");
+                tk_type = None;
             },
-            AutomatonState::Accept(15) => Token {
-                class: String::from("OPM"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(15) => {
+                class = String::from("OPM");
+                tk_type = None;
             },
-            AutomatonState::Accept(16) => Token {
-                class: String::from("AB_P"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(16) => {
+                class = String::from("AB_P");
+                tk_type = None;
             },
-            AutomatonState::Accept(17) => Token {
-                class: String::from("FC_P"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(17) => {
+                class = String::from("FC_P");
+                tk_type = None;
             },
-            AutomatonState::Accept(18) => Token {
-                class: String::from("PT_V"),
-                lexeme,
-                tk_type: None,
+            AutomatonState::Accept(18) => {
+                class = String::from("PT_V");
+                tk_type = None;
             },
-            AutomatonState::Error => Token {
-                class: String::from("ERROR"),
-                lexeme: String::from("NULO"),
-                tk_type: None,
+            AutomatonState::Error => {
+                class = String::from("ERROR");
+                lexeme = None;
+                tk_type = None;
             },
-            _ => Token {
-                class: String::from(""),
-                lexeme: lexeme,
-                tk_type: None,
-            },
+            _ => ()
+        };
+
+        Token {
+            class,
+            lexeme,
+            tk_type,
         }
     }
 }
