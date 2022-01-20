@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use super::lexical_automaton::*;
-use super::Token;
+use super::token::*;
 
 pub struct Scanner {
     file: BufReader<File>,
@@ -42,11 +42,7 @@ impl Scanner {
             }
         }
 
-        Token {
-            class: String::from("EOF"),
-            lexeme: Some(String::from("EOF")),
-            tk_type: None,
-        }
+        Token::new(String::from("EOF"), Some(String::from("EOF")), None)
     }
 
     // return a char by consuming the internal BufReader file
@@ -83,15 +79,15 @@ impl Scanner {
 
         match automaton_state {
             AutomatonState::Accept(1) => {
-                class = String::from("Num");
+                class = String::from("num");
                 tk_type = Some(String::from("inteiro"));
             },
             AutomatonState::Accept(2) | AutomatonState::Accept(3) => {
-                class = String::from("Num");
+                class = String::from("num");
                 tk_type = Some(String::from("real"));
             },
             AutomatonState::Accept(4) => {
-                class = String::from("Lit");
+                class = String::from("lit");
                 tk_type = Some(String::from("literal"));
             },
             AutomatonState::Accept(5) => {
@@ -99,47 +95,47 @@ impl Scanner {
                 tk_type = None;
             },
             AutomatonState::Accept(8) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(9) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(10) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(11) => {
-                class = String::from("RCB");
+                class = String::from("rcb");
                 tk_type = None;
             },
             AutomatonState::Accept(12) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(13) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(14) => {
-                class = String::from("OPR");
+                class = String::from("opr");
                 tk_type = None;
             },
             AutomatonState::Accept(15) => {
-                class = String::from("OPM");
+                class = String::from("opm");
                 tk_type = None;
             },
             AutomatonState::Accept(16) => {
-                class = String::from("AB_P");
+                class = String::from("ab_p");
                 tk_type = None;
             },
             AutomatonState::Accept(17) => {
-                class = String::from("FC_P");
+                class = String::from("fc_p");
                 tk_type = None;
             },
             AutomatonState::Accept(18) => {
-                class = String::from("PT_V");
+                class = String::from("pt_v");
                 tk_type = None;
             },
             AutomatonState::Error => {
@@ -150,10 +146,6 @@ impl Scanner {
             _ => ()
         };
 
-        Token {
-            class,
-            lexeme,
-            tk_type,
-        }
+        Token::new(class, lexeme, tk_type)
     }
 }
