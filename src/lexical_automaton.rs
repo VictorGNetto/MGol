@@ -3,7 +3,11 @@ pub enum AutomatonState {
     Initial,         // 0
     Accept(u8),      // 1, 2, ..., 18
     NonAccept(char), // a, b, c, d, e
-    Error,           // lexical error
+    Error(u8),       // lexical error - 0: character isn't in the alphabet
+                     //                 1: character doesn't start a token
+                     //                 2: no digit after a '.' in a num token
+                     //                 3: no digit, '+' or '-' after a 'e'/'E' in a num token
+                     //                 4: no digit after a ('e'/'E')('+''-')  in a num token
 }
 
 pub enum Action {
@@ -61,7 +65,8 @@ impl Automaton {
                     self.state = AutomatonState::Initial;
                     self.action = Action::None;
                 }
-                _ => self.error(),
+                c if is_in_alphabet(c) => self.error(1),
+                _ => self.error(0),
             },
             AutomatonState::Accept(1) => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(1),
@@ -71,7 +76,7 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::Accept(2) => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(2),
@@ -80,7 +85,7 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::Accept(3) => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(3),
@@ -88,7 +93,7 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::Accept(5) => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(5),
@@ -98,7 +103,7 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::Accept(8) => match c {
                 '=' => {
@@ -117,7 +122,7 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::Accept(12) => match c {
                 '=' => {
@@ -128,20 +133,20 @@ impl Automaton {
                     self.done = true;
                     self.action = Action::GoBack;
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::NonAccept('a') => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(2),
-                _ => self.error(),
+                _ => self.error(2),
             },
             AutomatonState::NonAccept('b') => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(3),
                 '+' | '-' => self.state = AutomatonState::NonAccept('c'),
-                _ => self.error(),
+                _ => self.error(3),
             },
             AutomatonState::NonAccept('c') => match c {
                 '0'..='9' => self.state = AutomatonState::Accept(3),
-                _ => self.error(),
+                _ => self.error(4),
             },
             AutomatonState::NonAccept('d') => match c {
                 '"' => {
@@ -151,7 +156,7 @@ impl Automaton {
                 c if is_in_alphabet(c) => {
                     self.state = AutomatonState::NonAccept('d');
                 }
-                _ => self.error(),
+                _ => self.error(0),
             },
             AutomatonState::NonAccept('e') => match c {
                 '}' => {
@@ -159,7 +164,7 @@ impl Automaton {
                     self.action = Action::ClearLexeme;
                 }
                 c if is_in_alphabet(c) => self.state = AutomatonState::NonAccept('e'),
-                _ => self.error(),
+                _ => self.error(0),
             },
             _ => (),
         }
@@ -167,8 +172,8 @@ impl Automaton {
 
     // Puts the automaton in the AutomatonState::Error state and
     // ends its execution by setting self.done to true
-    fn error(&mut self) {
-        self.state = AutomatonState::Error;
+    fn error(&mut self, kind: u8) {
+        self.state = AutomatonState::Error(kind);
         self.done = true;
         self.action = Action::ShowError;
     }

@@ -7,14 +7,14 @@ use super::token::*;
 pub struct Scanner {
     file: BufReader<File>,
     line: Vec<char>,
-    cursor: usize,
+    cursor: (usize, usize), // (row, col)
 }
 
 impl Scanner {
     pub fn new(file: File) -> Scanner {
         let file = BufReader::new(file);
         let line: Vec<char> = Vec::new();
-        let cursor: usize = 0;
+        let cursor: (usize, usize) = (0, 0);
 
         Scanner { file, line, cursor }
     }
@@ -31,9 +31,7 @@ impl Scanner {
                 Action::GoBack => self.put_back(),
                 Action::Standard => lexeme.push(c),
                 Action::ClearLexeme => lexeme.clear(),
-                Action::ShowError => {
-                    println!("Error sintático na linha 4, coluna {}: {}", self.cursor, c);
-                }
+                Action::ShowError => self.show_error(c, &automaton.state),
                 Action::None => (),
             }
 
@@ -47,8 +45,9 @@ impl Scanner {
 
     // return a char by consuming the internal BufReader file
     fn read_char(&mut self) -> Option<char> {
-        if self.cursor == self.line.len() {
-            self.cursor = 0;
+        if self.cursor.1 == self.line.len() {
+            self.cursor.0 += 1;
+            self.cursor.1 = 0;
             let mut s = String::new();
             match self.file.read_line(&mut s) {
                 Ok(0) => return None, // EOF
@@ -57,8 +56,8 @@ impl Scanner {
             }
         }
 
-        let c = self.line[self.cursor];
-        self.cursor += 1;
+        let c = self.line[self.cursor.1];
+        self.cursor.1 += 1;
 
         Some(c)
     }
@@ -66,7 +65,46 @@ impl Scanner {
     // Put the last read character into the 'stream', making it
     // available once again for another read_char()
     fn put_back(&mut self) {
-        self.cursor -= 1;
+        self.cursor.1 -= 1;
+    }
+
+    fn show_error(&self, c: char, automaton_state: &AutomatonState) {
+        let line = self.cursor.0;
+        let row = self.cursor.1;
+
+        match automaton_state {
+            AutomatonState::Error(0) => {
+                println!(
+                    "Erro léxico na linha {}, coluna {}: '{}' não pertence ao alfabeto",
+                    line, row, c
+                )
+            }
+            AutomatonState::Error(1) => {
+                println!(
+                    "Erro léxico na linha {}, coluna {}: '{}' não inicia nenhum token",
+                    line, row, c
+                )
+            }
+            AutomatonState::Error(2) => {
+                println!(
+                    "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, '{}' encontrado",
+                    line, row, c
+                )
+            }
+            AutomatonState::Error(3) => {
+                println!(
+                    "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', '{}' encontrado",
+                    line, row, c
+                )
+            }
+            AutomatonState::Error(4) => {
+                println!(
+                    "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, '{}' encontrado",
+                    line, row, c
+                )
+            }
+            _ => (),
+        }
     }
 
     // A Token fabric
@@ -81,69 +119,69 @@ impl Scanner {
             AutomatonState::Accept(1) => {
                 class = String::from("num");
                 tk_type = Some(String::from("inteiro"));
-            },
+            }
             AutomatonState::Accept(2) | AutomatonState::Accept(3) => {
                 class = String::from("num");
                 tk_type = Some(String::from("real"));
-            },
+            }
             AutomatonState::Accept(4) => {
                 class = String::from("lit");
                 tk_type = Some(String::from("literal"));
-            },
+            }
             AutomatonState::Accept(5) => {
                 class = String::from("id");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(8) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(9) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(10) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(11) => {
                 class = String::from("rcb");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(12) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(13) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(14) => {
                 class = String::from("opr");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(15) => {
                 class = String::from("opm");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(16) => {
                 class = String::from("ab_p");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(17) => {
                 class = String::from("fc_p");
                 tk_type = None;
-            },
+            }
             AutomatonState::Accept(18) => {
                 class = String::from("pt_v");
                 tk_type = None;
-            },
-            AutomatonState::Error => {
+            }
+            AutomatonState::Error(_) => {
                 class = String::from("ERROR");
                 lexeme = None;
                 tk_type = None;
-            },
-            _ => ()
+            }
+            _ => (),
         };
 
         Token::new(class, lexeme, tk_type)
