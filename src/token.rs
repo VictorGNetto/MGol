@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Token {
     pub class: String,
     pub lexeme: Option<String>,
@@ -19,5 +20,9 @@ impl Token {
             lexeme: Some(String::from(lexeme)),
             tk_type: Some(String::from(lexeme)),
         }
+    }
+
+    pub fn new_from_ref(token: &Token) -> Token {
+        token.clone()
     }
 }

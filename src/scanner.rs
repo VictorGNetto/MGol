@@ -2,12 +2,14 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use super::lexical_automaton::*;
+use super::symbol_table::*;
 use super::token::*;
 
 pub struct Scanner {
     file: BufReader<File>,
     line: Vec<char>,
     cursor: (usize, usize), // (row, col)
+    symbol_table: SymbolTable,
 }
 
 impl Scanner {
@@ -15,8 +17,14 @@ impl Scanner {
         let file = BufReader::new(file);
         let line: Vec<char> = Vec::new();
         let cursor: (usize, usize) = (0, 0);
+        let symbol_table = SymbolTable::new();
 
-        Scanner { file, line, cursor }
+        Scanner {
+            file,
+            line,
+            cursor,
+            symbol_table,
+        }
     }
 
     pub fn scan(&mut self) -> Token {
@@ -25,7 +33,6 @@ impl Scanner {
 
         while let Some(c) = self.read_char() {
             automaton.advance(c);
-            // println!("{:?}", automaton.state);
 
             match automaton.action {
                 Action::GoBack => self.put_back(),
@@ -40,19 +47,36 @@ impl Scanner {
             }
         }
 
+        if lexeme.len() > 0 {
+            return self.build_token(lexeme, automaton.state);
+        }
+
         Token::new(String::from("EOF"), Some(String::from("EOF")), None)
     }
 
     // return a char by consuming the internal BufReader file
     fn read_char(&mut self) -> Option<char> {
+        static mut EOF_REACHED: bool = false;
+
         if self.cursor.1 == self.line.len() {
             self.cursor.0 += 1;
             self.cursor.1 = 0;
             let mut s = String::new();
             match self.file.read_line(&mut s) {
-                Ok(0) => return None, // EOF
+                Ok(0) => {
+                    // EOF
+                    unsafe {
+                        EOF_REACHED = true;
+                    }
+                }
                 Ok(_) => self.line = s.chars().collect(),
-                _ => (),
+                Err(_) => (),
+            }
+        }
+
+        unsafe {
+            if EOF_REACHED {
+                return None;
             }
         }
 
@@ -129,6 +153,11 @@ impl Scanner {
                 tk_type = Some(String::from("literal"));
             }
             AutomatonState::Accept(5) => {
+                let lexeme_str = lexeme.clone();
+                if let Some(token) = self.symbol_table.get(lexeme_str.unwrap().as_str()) {
+                    return token;
+                }
+
                 class = String::from("id");
                 tk_type = None;
             }
