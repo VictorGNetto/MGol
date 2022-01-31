@@ -5,6 +5,11 @@ use super::lexical_automaton::*;
 use super::symbol_table::*;
 use super::token::*;
 
+// A struct to represent a Scanner. For sake of simplicity the
+// Scanner keeps the symbol table. Moreover, the Scanner keeps
+// the file handle (MGol code), a vector of chars (the current
+// line being read) and a cursor (row and column position of
+// the cursor in the MGol code)
 pub struct Scanner {
     file: BufReader<File>,
     line: Vec<char>,
@@ -13,6 +18,7 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    // create a new Scanner
     pub fn new(file: File) -> Scanner {
         let file = BufReader::new(file);
         let line: Vec<char> = Vec::new();
@@ -27,6 +33,7 @@ impl Scanner {
         }
     }
 
+    // scan and return the next token from the source code
     pub fn scan(&mut self) -> Token {
         let mut lexeme = String::new();
         let mut automaton = Automaton::new();
@@ -92,6 +99,7 @@ impl Scanner {
         self.cursor.1 -= 1;
     }
 
+    // show the error message based on the automaton state
     fn show_error(&self, c: char, automaton_state: &AutomatonState) {
         let line = self.cursor.0;
         let row = self.cursor.1;
@@ -133,11 +141,9 @@ impl Scanner {
 
     // A Token fabric
     fn build_token(&mut self, lexeme: String, automaton_state: AutomatonState) -> Token {
-        // println!(">>> {:?}", automaton_state);
-
         let mut class = String::new();
         let mut lexeme = Some(lexeme);
-        let mut tk_type = Some(String::new());
+        let mut tk_type = None;
 
         match automaton_state {
             AutomatonState::Accept(1) => {
@@ -153,62 +159,37 @@ impl Scanner {
                 tk_type = Some(String::from("literal"));
             }
             AutomatonState::Accept(5) => {
-                let lexeme_str = lexeme.clone();
-                if let Some(token) = self.symbol_table.get(lexeme_str.unwrap().as_str()) {
+                // checks whether the token is already in the symbol table
+                let lexeme_clone = lexeme.clone();
+                if let Some(token) = self.symbol_table.get(lexeme_clone.unwrap()) {
                     return token;
                 }
 
+                // insert the token in the symbol table
+                let lexeme_clone = lexeme.clone();
+                let token = Token::new(
+                    String::from("id"),
+                    Some(lexeme_clone.clone().unwrap()),
+                    None,
+                );
+                self.symbol_table.insert(lexeme_clone.unwrap(), token);
+
                 class = String::from("id");
-                tk_type = None;
             }
-            AutomatonState::Accept(8) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(9) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(10) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(11) => {
-                class = String::from("rcb");
-                tk_type = None;
-            }
-            AutomatonState::Accept(12) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(13) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(14) => {
-                class = String::from("opr");
-                tk_type = None;
-            }
-            AutomatonState::Accept(15) => {
-                class = String::from("opm");
-                tk_type = None;
-            }
-            AutomatonState::Accept(16) => {
-                class = String::from("ab_p");
-                tk_type = None;
-            }
-            AutomatonState::Accept(17) => {
-                class = String::from("fc_p");
-                tk_type = None;
-            }
-            AutomatonState::Accept(18) => {
-                class = String::from("pt_v");
-                tk_type = None;
-            }
+            AutomatonState::Accept(8) => class = String::from("opr"),
+            AutomatonState::Accept(9) => class = String::from("opr"),
+            AutomatonState::Accept(10) => class = String::from("opr"),
+            AutomatonState::Accept(11) => class = String::from("rcb"),
+            AutomatonState::Accept(12) => class = String::from("opr"),
+            AutomatonState::Accept(13) => class = String::from("opr"),
+            AutomatonState::Accept(14) => class = String::from("opr"),
+            AutomatonState::Accept(15) => class = String::from("opm"),
+            AutomatonState::Accept(16) => class = String::from("ab_p"),
+            AutomatonState::Accept(17) => class = String::from("fc_p"),
+            AutomatonState::Accept(18) => class = String::from("pt_v"),
             AutomatonState::Error(_) => {
                 class = String::from("ERROR");
                 lexeme = None;
-                tk_type = None;
             }
             _ => (),
         };

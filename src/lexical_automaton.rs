@@ -1,4 +1,4 @@
-#[derive(Debug)]
+// All allowed automaton states
 pub enum AutomatonState {
     Initial,         // 0
     Accept(u8),      // 1, 2, ..., 18
@@ -10,14 +10,20 @@ pub enum AutomatonState {
                      //                 4: no digit after a ('e'/'E')('+''-')  in a num token
 }
 
+// Actions to be performed by the Scanner using the the automaton
 pub enum Action {
-    None,
-    GoBack,
-    Standard,
-    ClearLexeme,
-    ShowError,
+    None,        // do nothing
+    GoBack,      // make the scanner cursor to go one step back
+    Standard,    // append the last character read into the lexeme
+    ClearLexeme, // clear the scanner lexeme being written
+    ShowError,   // show error message
 }
 
+// A struct to represent an automaton used in the lexical
+// analysis. Internally, it keeps an AutomatonState (current
+// automaton state), a bool variable done (when done == true
+// the automaton reached an accept state) and an Action (to be
+// performed by the Scanner).
 pub struct Automaton {
     pub state: AutomatonState,
     pub done: bool,
@@ -25,6 +31,7 @@ pub struct Automaton {
 }
 
 impl Automaton {
+    // create a new Automaton
     pub fn new() -> Automaton {
         Automaton {
             state: AutomatonState::Initial,
@@ -33,6 +40,7 @@ impl Automaton {
         }
     }
 
+    // advance the automaton by the reading of a character
     pub fn advance(&mut self, c: char) {
         self.action = Action::Standard;
 
@@ -170,8 +178,8 @@ impl Automaton {
         }
     }
 
-    // Puts the automaton in the AutomatonState::Error state and
-    // ends its execution by setting self.done to true
+    // Put the automaton in the AutomatonState::Error state and
+    // end its execution by setting self.done to true
     fn error(&mut self, kind: u8) {
         self.state = AutomatonState::Error(kind);
         self.done = true;
@@ -179,6 +187,7 @@ impl Automaton {
     }
 }
 
+// check if a characters is in the MGol alphabet
 fn is_in_alphabet(c: char) -> bool {
     match c {
         '0'..='9' => true,

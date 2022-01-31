@@ -2,11 +2,14 @@ use std::collections::HashMap;
 
 use super::token::*;
 
+// A struct to represent a Symbol Table. It just
+// a wrapper of a HashMap<String, Token>.
 pub struct SymbolTable {
     hashmap: HashMap<String, Token>,
 }
 
 impl SymbolTable {
+    // create a new SymbolTable (already with the MGol reserved words)
     pub fn new() -> SymbolTable {
         let hashmap = HashMap::new();
 
@@ -16,14 +19,28 @@ impl SymbolTable {
         symbol_table
     }
 
-    pub fn get(&self, lexeme: &str) -> Option<Token> {
-        if let Some(token) = self.hashmap.get(lexeme) {
+    // get a Token from the Symbol Table
+    pub fn get(&self, lexeme: String) -> Option<Token> {
+        if let Some(token) = self.hashmap.get(lexeme.as_str()) {
             return Some(Token::new_from_ref(token));
         }
 
         None
     }
 
+    // insert a Token into the Symbol Table
+    pub fn insert(&mut self, lexeme: String, token: Token) {
+        self.hashmap.insert(lexeme, token);
+    }
+
+    // update a Token from the Symbol Table
+    pub fn update(&mut self, lexeme: String, token: Token) {
+        if self.hashmap.contains_key(lexeme.as_str()) {
+            self.insert(lexeme, token);
+        }
+    }
+
+    // put all the MGol reserved words into the Symbol Table
     fn init_reserved_words(&mut self) {
         let reserved_words = [
             "inicio",

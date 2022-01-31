@@ -2,14 +2,14 @@ use mgol::scanner::Scanner;
 use std::fs::File;
 
 fn main() {
-    // Abre o arquivo
+    // open the file
     let path = "./test/teste.mgol";
     let file = match File::open(path) {
         Err(_) => panic!("Não foi possível abrir o arquivo {}", path),
         Ok(file) => file,
     };
 
-    // Inicializa o Scanner
+    // start the scanner
     let mut scanner = Scanner::new(file);
 
     loop {
