@@ -45,6 +45,7 @@ impl Scanner {
         let mut lexeme = String::new();
         let mut automaton = Automaton::new();
 
+        // read the code until the EOF
         while let Some(c) = self.read_char() {
             automaton.advance(c);
 
@@ -61,8 +62,17 @@ impl Scanner {
             }
         }
 
+        // Perhaps the last code piece has not been parsed. Do it now!
         if lexeme.len() > 0 {
-            return self.build_token(lexeme, automaton.state);
+            match automaton.state {
+                AutomatonState::Accept(_) => return self.build_token(lexeme, automaton.state),
+                AutomatonState::NonAccept(_) => {
+                    automaton.state = AutomatonState::Error(5);
+                    self.show_error(' ', &automaton.state);
+                    return self.build_token(lexeme, automaton.state);
+                }
+                _ => (),
+            }
         }
 
         Token::new(String::from("EOF"), Some(String::from("EOF")), None)
@@ -140,6 +150,12 @@ impl Scanner {
                 println!(
                     "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, '{}' encontrado",
                     line, row, c
+                )
+            }
+            AutomatonState::Error(5) => {
+                println!(
+                    "Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
+                    line, row
                 )
             }
             _ => (),

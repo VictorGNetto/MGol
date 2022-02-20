@@ -27,8 +27,8 @@ fn main() {
         println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
 
         if class.eq("EOF") {
-            println!("----------------");
-            scanner.show_symbol_table();
+            // println!("----------------");
+            // scanner.show_symbol_table();
             break;
         }
     }

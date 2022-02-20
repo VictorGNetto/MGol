@@ -8,6 +8,7 @@ pub enum AutomatonState {
                      //                 2: no digit after a '.' in a num token
                      //                 3: no digit, '+' or '-' after a 'e'/'E' in a num token
                      //                 4: no digit after a ('e'/'E')('+''-')  in a num token
+                     //                 5: unfinished comment or literal
 }
 
 // Actions to be performed by the Scanner using the the automaton
