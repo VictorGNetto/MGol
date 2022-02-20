@@ -33,6 +33,13 @@ impl Scanner {
         }
     }
 
+    // show the symbol table content
+    pub fn show_symbol_table(&self) {
+        for (lexeme, token) in self.symbol_table.iter() {
+            println!("<{}> => {:?}", lexeme, token);
+        }
+    }
+
     // scan and return the next token from the source code
     pub fn scan(&mut self) -> Token {
         let mut lexeme = String::new();

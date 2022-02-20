@@ -5,7 +5,7 @@ use super::token::*;
 // A struct to represent a Symbol Table. It just
 // a wrapper of a HashMap<String, Token>.
 pub struct SymbolTable {
-    hashmap: HashMap<String, Token>,
+    pub hashmap: HashMap<String, Token>,
 }
 
 impl SymbolTable {
@@ -38,6 +38,11 @@ impl SymbolTable {
         if self.hashmap.contains_key(lexeme.as_str()) {
             self.insert(lexeme, token);
         }
+    }
+
+    // return an iteretor of the symbol table hashmap
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, Token> {
+        self.hashmap.iter()
     }
 
     // put all the MGol reserved words into the Symbol Table

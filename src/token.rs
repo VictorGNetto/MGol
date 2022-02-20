@@ -2,7 +2,7 @@
 // String, while lexeme and tk_type is a Option<String>.
 // When lexeme or tk_type is None, means that the Token
 // doesn't have those attributes.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub class: String,
     pub lexeme: Option<String>,
