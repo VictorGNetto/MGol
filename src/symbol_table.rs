@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::token::*;
 
-// A struct to represent a Symbol Table. It just
+// A struct to represent a Symbol Table. It's just
 // a wrapper of a HashMap<String, Token>.
 pub struct SymbolTable {
     pub hashmap: HashMap<String, Token>,

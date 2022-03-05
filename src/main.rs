@@ -1,6 +1,8 @@
 use mgol::scanner::Scanner;
 use std::fs::File;
 
+use mgol::grammar::Grammar;
+
 fn main() {
     // open the file
     let path = "./test/teste.mgol";
@@ -32,4 +34,7 @@ fn main() {
             break;
         }
     }
+
+    let grammar = Grammar::new();
+    grammar.show();
 }
