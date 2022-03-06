@@ -1,10 +1,8 @@
-#[derive(Clone, Debug)]
 pub struct AlphabetItem {
     pub text: String,
     pub terminal: bool,
 }
 
-#[derive(Clone, Debug)]
 pub struct GrammarRule {
     left: AlphabetItem,
     right: Vec<AlphabetItem>,
@@ -27,10 +25,19 @@ impl Grammar {
     }
 
     pub fn show(&self) {
-        let mut n = 1;
-        for rule in &self.rules {
-            println!("{}: {:?}", n, rule);
-            n += 1;
+        for n in 0..self.rules.len() {
+            let left = &self.rules[n].left;
+            let right = &self.rules[n].right;
+            println!(
+                "{}. {} -> {}",
+                n + 1,
+                left.text,
+                right
+                    .iter()
+                    .map(|item| String::from(&item.text))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
         }
     }
 
