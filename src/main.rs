@@ -2,6 +2,7 @@ use mgol::scanner::Scanner;
 use std::fs::File;
 
 use mgol::grammar::Grammar;
+use mgol::slr_table::ActionTable;
 
 fn main() {
     // open the file
@@ -37,4 +38,8 @@ fn main() {
 
     let grammar = Grammar::new();
     grammar.show();
+
+    let action_table = ActionTable::new();
+    // action_table.show();
+    println!("{}", action_table.len());
 }
