@@ -30,16 +30,16 @@ fn main() {
         println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
 
         if class.eq("EOF") {
-            // println!("----------------");
-            // scanner.show_symbol_table();
             break;
         }
     }
+    
+    scanner.show_symbol_table();
 
     let grammar = Grammar::new();
     grammar.show();
 
     let action_table = ActionTable::new();
-    // action_table.show();
+    action_table.show();
     println!("{}", action_table.len());
 }

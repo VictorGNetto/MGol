@@ -44,7 +44,7 @@ impl Grammar {
     fn init_rules(&mut self) {
         self.add_grammar_rule("P'", "P");
         self.add_grammar_rule("P", "inicio V A");
-        self.add_grammar_rule("V", "varincio LV");
+        self.add_grammar_rule("V", "varinicio LV");
         self.add_grammar_rule("LV", "D LV");
         self.add_grammar_rule("LV", "varfim pt_v");
         self.add_grammar_rule("D", "TIPO L pt_v");
