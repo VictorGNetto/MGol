@@ -1,6 +1,6 @@
 P'    → P
 P     → inicio V A
-V     → varincio LV
+V     → varinicio LV
 LV    → D LV
 LV    → varfim pt_v
 D     → TIPO L pt_v
@@ -22,7 +22,7 @@ OPRD  → id
 OPRD  → num
 A     → COND A
 COND  → CAB CP
-CAB   → se ab_p EXP_R fc_p então
+CAB   → se ab_p EXP_R fc_p entao
 EXP_R → OPRD opr OPRD
 CP    → ES CP
 CP    → CMD CP

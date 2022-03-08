@@ -98,4 +98,74 @@ impl ActionTable {
     }
 }
 
-struct GotoTable {}
+pub struct GotoTable {
+    table: HashMap<(u8, String), u8>,
+}
+
+impl GotoTable {
+    pub fn new() -> GotoTable {
+        let nonterminals = [
+            "P",
+            "V",
+            "LV",
+            "D",
+            "L",
+            "TIPO",
+            "A",
+            "ES",
+            "ARG",
+            "CMD",
+            "LD",
+            "OPRD",
+            "COND",
+            "CAB",
+            "EXP_R",
+            "CP",
+            "R",
+            "CABR",
+            "CPR",
+        ];
+
+        // open the .csv goto table
+        let path = "./src/goto_table.csv";
+        let actions_file = match File::open(path) {
+            Err(_) => panic!("Não foi possível abrir o arquivo {}", path),
+            Ok(file) => file,
+        };
+
+        // create a line iterator over the .csv file
+        let mut lines = io::BufReader::new(actions_file).lines();
+
+        // consume the first line that contains the nonterminals names
+        lines.next();
+
+        let mut table = HashMap::new();
+        for line in lines {
+            if let Ok(okline) = line {
+                let gotos = okline.split(",").collect::<Vec<&str>>();
+                let state = gotos[0].parse::<u8>().unwrap();
+                // HashMap<(u8, String), u8>
+                for i in 0..nonterminals.len() {
+                    let goto = gotos[i + 1].parse::<u8>().unwrap();
+                    if goto == 0 {
+                        continue;
+                    }
+                    let nonterminal = nonterminals[i];
+                    table.insert((state, String::from(nonterminal)), goto);
+                }
+            }
+        }
+
+        GotoTable { table }
+    }
+
+    pub fn len(&self) -> usize {
+        self.table.len()
+    }
+
+    pub fn show(&self) {
+        for key in self.table.keys() {
+            println!("{:?} -> {}", key, self.table.get(key).unwrap());
+        }
+    }
+}
