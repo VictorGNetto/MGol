@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
 
-#[derive(Debug)]
-enum SlrAction {
+#[derive(Clone, Debug)]
+pub enum SlrAction {
     S(u8), // shift
     R(u8), // reduce
     Acc,   // accept
@@ -54,7 +54,7 @@ impl ActionTable {
             "inteiro",
             "literal",
             "real",
-            "$",
+            "EOF",
         ];
 
         // open the .csv action table
@@ -95,6 +95,11 @@ impl ActionTable {
         for key in self.table.keys() {
             println!("{:?} -> {:?}", key, self.table.get(key).unwrap());
         }
+    }
+
+    pub fn get(&self, key: &(u8, String)) -> SlrAction {
+        // println!("{:?}", key);
+        self.table.get(key).unwrap().clone()
     }
 }
 
@@ -167,5 +172,10 @@ impl GotoTable {
         for key in self.table.keys() {
             println!("{:?} -> {}", key, self.table.get(key).unwrap());
         }
+    }
+
+    pub fn get(&self, key: &(u8, String)) -> u8 {
+        // println!("{:?}", key);
+        self.table.get(key).unwrap().clone()
     }
 }

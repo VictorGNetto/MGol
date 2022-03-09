@@ -1,8 +1,6 @@
-use mgol::scanner::Scanner;
 use std::fs::File;
-
-use mgol::grammar::Grammar;
-use mgol::slr_table::{ActionTable, GotoTable};
+use mgol::scanner::Scanner;
+use mgol::parser::Parser;
 
 fn main() {
     // open the file
@@ -15,35 +13,25 @@ fn main() {
     // start the scanner
     let mut scanner = Scanner::new(file);
 
-    loop {
-        let token = scanner.scan();
+    let mut parser = Parser::new();
+    parser.parse(&mut scanner);
 
-        let class = token.class;
-        let lexeme = match token.lexeme {
-            Some(s) => s,
-            None => String::from("Nulo"),
-        };
-        let tk_type = match token.tk_type {
-            Some(s) => s,
-            None => String::from("Nulo"),
-        };
-        println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
+    // loop {
+    //     let token = scanner.scan();
 
-        if class.eq("EOF") {
-            break;
-        }
-    }
-    
-    scanner.show_symbol_table();
+    //     let class = token.class;
+    //     let lexeme = match token.lexeme {
+    //         Some(s) => s,
+    //         None => String::from("Nulo"),
+    //     };
+    //     let tk_type = match token.tk_type {
+    //         Some(s) => s,
+    //         None => String::from("Nulo"),
+    //     };
+    //     println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
 
-    let grammar = Grammar::new();
-    grammar.show();
-
-    // let action_table = ActionTable::new();
-    // action_table.show();
-    // println!("{}", action_table.len());
-
-    let goto_table = GotoTable::new();
-    goto_table.show();
-    println!("{}", goto_table.len());
+    //     if class.eq("EOF") {
+    //         break;
+    //     }
+    // }
 }

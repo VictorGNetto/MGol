@@ -1,11 +1,27 @@
+#[derive(Clone)]
 pub struct AlphabetItem {
     pub text: String,
     pub terminal: bool,
 }
 
+#[derive(Clone)]
 pub struct GrammarRule {
-    left: AlphabetItem,
-    right: Vec<AlphabetItem>,
+    pub left: AlphabetItem,
+    pub right: Vec<AlphabetItem>,
+}
+
+impl GrammarRule {
+    pub fn show(&self) {
+        println!(
+            "{} -> {}",
+            self.left.text,
+            self.right
+                .iter()
+                .map(|item| String::from(&item.text))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+    }
 }
 
 pub struct Grammar {
@@ -20,24 +36,14 @@ impl Grammar {
         grammar
     }
 
-    pub fn get_rule(&self, index: usize) -> &GrammarRule {
-        &self.rules[index - 1]
+    pub fn get_rule(&self, index: usize) -> GrammarRule {
+        self.rules[index - 1].clone()
     }
 
     pub fn show(&self) {
         for n in 0..self.rules.len() {
-            let left = &self.rules[n].left;
-            let right = &self.rules[n].right;
-            println!(
-                "{}. {} -> {}",
-                n + 1,
-                left.text,
-                right
-                    .iter()
-                    .map(|item| String::from(&item.text))
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            );
+            print!("{}.", n);
+            self.rules[n].show();
         }
     }
 
