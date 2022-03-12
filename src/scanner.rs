@@ -78,6 +78,25 @@ impl Scanner {
         Token::new(String::from("EOF"), Some(String::from("EOF")), None)
     }
 
+    // scan and return the next safe token from the source code
+    // safe token = all token but the ERROR one
+    pub fn safe_scan(&mut self) -> Token {
+        loop {
+            let token = self.scan();
+            if token.class.ne("ERROR") {
+                return token;
+            }
+        }
+    }
+
+    pub fn get_row(&self) -> usize {
+        self.cursor.0
+    }
+
+    pub fn get_col(&self) -> usize {
+        self.cursor.1
+    }
+
     // return a char by consuming the internal BufReader file
     fn read_char(&mut self) -> Option<char> {
         static mut EOF_REACHED: bool = false;
@@ -118,44 +137,44 @@ impl Scanner {
 
     // show the error message based on the automaton state
     fn show_error(&self, c: char, automaton_state: &AutomatonState) {
-        let line = self.cursor.0;
-        let row = self.cursor.1;
+        let row = self.get_row();
+        let col = self.get_col();
 
         match automaton_state {
             AutomatonState::Error(0) => {
                 println!(
-                    "Erro léxico na linha {}, coluna {}: '{}' não pertence ao alfabeto",
-                    line, row, c
+                    "Erro léxico na linha {}, coluna {}: {:?} não pertence ao alfabeto",
+                    row, col, c
                 )
             }
             AutomatonState::Error(1) => {
                 println!(
-                    "Erro léxico na linha {}, coluna {}: '{}' não inicia nenhum token",
-                    line, row, c
+                    "Erro léxico na linha {}, coluna {}: {:?} não inicia nenhum token",
+                    row, col, c
                 )
             }
             AutomatonState::Error(2) => {
                 println!(
-                    "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, '{}' encontrado",
-                    line, row, c
+                    "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, {:?} encontrado",
+                    row, col, c
                 )
             }
             AutomatonState::Error(3) => {
                 println!(
-                    "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', '{}' encontrado",
-                    line, row, c
+                    "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', {:?} encontrado",
+                    row, col, c
                 )
             }
             AutomatonState::Error(4) => {
                 println!(
-                    "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, '{}' encontrado",
-                    line, row, c
+                    "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, {:?} encontrado",
+                    row, col, c
                 )
             }
             AutomatonState::Error(5) => {
                 println!(
                     "Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
-                    line, row
+                    row, col
                 )
             }
             _ => (),
