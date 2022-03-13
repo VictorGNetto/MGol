@@ -13,25 +13,7 @@ fn main() {
     // start the scanner
     let mut scanner = Scanner::new(file);
 
+    // start the parser and give it the scanner to begin the syntactic analysis
     let mut parser = Parser::new();
     parser.parse(&mut scanner);
-
-    // loop {
-    //     let token = scanner.scan();
-
-    //     let class = token.class;
-    //     let lexeme = match token.lexeme {
-    //         Some(s) => s,
-    //         None => String::from("Nulo"),
-    //     };
-    //     let tk_type = match token.tk_type {
-    //         Some(s) => s,
-    //         None => String::from("Nulo"),
-    //     };
-    //     println!("Classe: {}, Lexema: {}, Tipo: {}", class, lexeme, tk_type);
-
-    //     if class.eq("EOF") {
-    //         break;
-    //     }
-    // }
 }

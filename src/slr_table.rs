@@ -98,7 +98,6 @@ impl ActionTable {
     }
 
     pub fn get(&self, key: &(u8, String)) -> SlrAction {
-        // println!("{:?}", key);
         self.table.get(key).unwrap().clone()
     }
 }
@@ -175,7 +174,6 @@ impl GotoTable {
     }
 
     pub fn get(&self, key: &(u8, String)) -> u8 {
-        // println!("{:?}", key);
         self.table.get(key).unwrap().clone()
     }
 }
