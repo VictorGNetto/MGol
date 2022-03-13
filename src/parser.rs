@@ -72,6 +72,7 @@ impl Parser {
                 }
                 SlrAction::Acc => break,
                 SlrAction::E(e) => {
+                    println!("ERRO >>> {:?}", &(s, a.clone()));
                     // put the last read Token back into the input
                     self.token_buffer.push(token);
 
@@ -88,6 +89,7 @@ impl Parser {
             }
         }
 
+        scanner.show_error_msgs();
         self.show_error_msgs();
     }
 
@@ -100,6 +102,19 @@ impl Parser {
     }
 
     fn error_recovery(&mut self, error_code: u8, scanner: &mut Scanner) -> bool {
+        // Some syntatic errors may be recovered and some may not.
+        // For those who can not be recovered, sometimes a infinite loop
+        // takes place and the syntatic analysis never ends. To prevent this,
+        // we limit the maximum number of errors recovery to be 100.
+        const MAX_SIYNTATIC_ERRORS: u8 = 100;
+        static mut SYNTATIC_ERRORS: u8 = 0;
+        unsafe {
+            SYNTATIC_ERRORS += 1;
+            if SYNTATIC_ERRORS > MAX_SIYNTATIC_ERRORS {
+                return false;
+            }
+        }
+
         match error_code {
             // code found after the 'fim'  keyword
             1 => {
@@ -134,6 +149,31 @@ impl Parser {
                 ));
                 return true;
             }
+            // two or more ';' in sequence
+            3 => {
+                // remove one ';' at a time
+                self.token_buffer.pop();
+
+                self.error_msgs.push(format!(
+                    "Erro sintático na linha {}, coluna {}: múltiplos ';' na sequência",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return true;
+            }
+            // invalid token after a ';'
+            4 => {
+                // remove the wrong token
+                let token = self.token_buffer.pop();
+
+                self.error_msgs.push(format!(
+                    "Erro sintático na linha {}, coluna {}: token inválido após um ';'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
             _ => {
                 self.error_msgs.push(format!(
                     "Erro sintático na linha {}, coluna {}",
@@ -155,8 +195,8 @@ impl Parser {
 
         for i in 0..n {
             let msg = &self.error_msgs[i];
-            println!("-- ERRO {} --------------------", i + 1);
-            println!("{}", msg);
+            println!("# ERRO {}", i + 1);
+            println!("    {}", msg);
         }
     }
 }

@@ -15,6 +15,7 @@ pub struct Scanner {
     line: Vec<char>,
     cursor: (usize, usize), // (row, col)
     symbol_table: SymbolTable,
+    error_msgs: Vec<String>,
 }
 
 impl Scanner {
@@ -24,12 +25,14 @@ impl Scanner {
         let line: Vec<char> = Vec::new();
         let cursor: (usize, usize) = (0, 0);
         let symbol_table = SymbolTable::new();
+        let error_msgs = Vec::new();
 
         Scanner {
             file,
             line,
             cursor,
             symbol_table,
+            error_msgs,
         }
     }
 
@@ -53,7 +56,7 @@ impl Scanner {
                 Action::GoBack => self.put_back(),
                 Action::Standard => lexeme.push(c),
                 Action::ClearLexeme => lexeme.clear(),
-                Action::ShowError => self.show_error(c, &automaton.state),
+                Action::ShowError => self.insert_error_msg(c, &automaton.state),
                 Action::None => (),
             }
 
@@ -68,7 +71,7 @@ impl Scanner {
                 AutomatonState::Accept(_) => return self.build_token(lexeme, automaton.state),
                 AutomatonState::NonAccept(_) => {
                     automaton.state = AutomatonState::Error(5);
-                    self.show_error(' ', &automaton.state);
+                    self.insert_error_msg(' ', &automaton.state);
                     return self.build_token(lexeme, automaton.state);
                 }
                 _ => (),
@@ -135,49 +138,52 @@ impl Scanner {
         self.cursor.1 -= 1;
     }
 
-    // show the error message based on the automaton state
-    fn show_error(&self, c: char, automaton_state: &AutomatonState) {
+    // insert error message based on the automaton state
+    fn insert_error_msg(&mut self, c: char, automaton_state: &AutomatonState) {
         let row = self.get_row();
         let col = self.get_col();
 
         match automaton_state {
-            AutomatonState::Error(0) => {
-                println!(
-                    "Erro léxico na linha {}, coluna {}: {:?} não pertence ao alfabeto",
-                    row, col, c
-                )
-            }
-            AutomatonState::Error(1) => {
-                println!(
-                    "Erro léxico na linha {}, coluna {}: {:?} não inicia nenhum token",
-                    row, col, c
-                )
-            }
-            AutomatonState::Error(2) => {
-                println!(
-                    "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, {:?} encontrado",
-                    row, col, c
-                )
-            }
-            AutomatonState::Error(3) => {
-                println!(
-                    "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', {:?} encontrado",
-                    row, col, c
-                )
-            }
-            AutomatonState::Error(4) => {
-                println!(
-                    "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, {:?} encontrado",
-                    row, col, c
-                )
-            }
-            AutomatonState::Error(5) => {
-                println!(
-                    "Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
-                    row, col
-                )
-            }
+            AutomatonState::Error(0) => self.error_msgs.push(format!(
+                "Erro léxico na linha {}, coluna {}: {:?} não pertence ao alfabeto",
+                row, col, c
+            )),
+            AutomatonState::Error(1) => self.error_msgs.push(format!(
+                "Erro léxico na linha {}, coluna {}: {:?} não inicia nenhum token",
+                row, col, c
+            )),
+            AutomatonState::Error(2) => self.error_msgs.push(format!(
+                "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, {:?} encontrado",
+                row, col, c
+            )),
+            AutomatonState::Error(3) => self.error_msgs.push(format!(
+                "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', {:?} encontrado",
+                row, col, c
+            )),
+            AutomatonState::Error(4) => self.error_msgs.push(format!(
+                "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, {:?} encontrado",
+                row, col, c
+            )),
+            AutomatonState::Error(5) => self.error_msgs.push(format!(
+                "Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
+                row, col
+            )),
             _ => (),
+        }
+    }
+
+    pub fn show_error_msgs(&self) {
+        let n = self.error_msgs.len();
+        match n {
+            0 => (),
+            1 => println!("Foi encontrado 1 erro léxico"),
+            _ => println!("Foi encontrado {} erros léxicos", n),
+        }
+
+        for i in 0..n {
+            let msg = &self.error_msgs[i];
+            println!("# ERRO {}", i + 1);
+            println!("    {}", msg);
         }
     }
 
