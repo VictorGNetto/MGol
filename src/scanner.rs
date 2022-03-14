@@ -145,27 +145,27 @@ impl Scanner {
 
         match automaton_state {
             AutomatonState::Error(0) => self.error_msgs.push(format!(
-                "Erro léxico na linha {}, coluna {}: {:?} não pertence ao alfabeto",
+                "[EL0] Erro léxico na linha {}, coluna {}: {:?} não pertence ao alfabeto",
                 row, col, c
             )),
             AutomatonState::Error(1) => self.error_msgs.push(format!(
-                "Erro léxico na linha {}, coluna {}: {:?} não inicia nenhum token",
+                "[EL1] Erro léxico na linha {}, coluna {}: {:?} não inicia nenhum token",
                 row, col, c
             )),
             AutomatonState::Error(2) => self.error_msgs.push(format!(
-                "Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, {:?} encontrado",
+                "[EL2] Erro léxico na linha {}, coluna {}: após um '.' em um <num> deve vir um dígito, {:?} encontrado",
                 row, col, c
             )),
             AutomatonState::Error(3) => self.error_msgs.push(format!(
-                "Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', {:?} encontrado",
+                "[EL3] Erro léxico na linha {}, coluna {}: após um 'e' ou 'E' em um <num> deve vir um dígito, um '+' ou um '-', {:?} encontrado",
                 row, col, c
             )),
             AutomatonState::Error(4) => self.error_msgs.push(format!(
-                "Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, {:?} encontrado",
+                "[EL4] Erro léxico na linha {}, coluna {}: após um 'e+', 'e-', 'E+' ou 'E-' em um <num> deve vir um dígito, {:?} encontrado",
                 row, col, c
             )),
             AutomatonState::Error(5) => self.error_msgs.push(format!(
-                "Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
+                "[EL5] Erro léxico. Não encontrado o fechamento do comentário ou literal que termina na linha {}, coluna {}",
                 row, col
             )),
             _ => (),

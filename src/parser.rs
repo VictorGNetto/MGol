@@ -127,7 +127,7 @@ impl Parser {
                 ));
 
                 self.error_msgs.push(format!(
-                    "Erro sintático na linha {}, coluna {}: nenhum código deve vir após a palavra reservada 'fim'",
+                    "[ES1] Erro sintático na linha {}, coluna {}: nenhum código deve vir após a palavra reservada 'fim'",
                     scanner.get_row(),
                     scanner.get_col()
                 ));
@@ -143,7 +143,7 @@ impl Parser {
                 ));
 
                 self.error_msgs.push(format!(
-                    "Erro sintático na linha {}, coluna {}: ausência de ';'",
+                    "[ES2] Erro sintático na linha {}, coluna {}: ausência de ';'",
                     scanner.get_row(),
                     scanner.get_col()
                 ));
@@ -155,7 +155,7 @@ impl Parser {
                 self.token_buffer.pop();
 
                 self.error_msgs.push(format!(
-                    "Erro sintático na linha {}, coluna {}: múltiplos ';' na sequência",
+                    "[ES3] Erro sintático na linha {}, coluna {}: múltiplos ';' na sequência",
                     scanner.get_row(),
                     scanner.get_col()
                 ));
@@ -167,7 +167,122 @@ impl Parser {
                 let token = self.token_buffer.pop();
 
                 self.error_msgs.push(format!(
-                    "Erro sintático na linha {}, coluna {}: token inválido após um ';'\n    NOTA: o token '{}' foi removido",
+                    "[ES4] Erro sintático na linha {}, coluna {}: token inválido após um ';'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
+            // '(' expected after a 'se' keyword
+            5 => {
+                // remove the wrong token
+                let token = self.token_buffer.pop();
+
+                self.token_buffer.push(Token::new(
+                    String::from("ab_p"),
+                    Some(String::from("(")),
+                    None,
+                ));
+
+                self.error_msgs.push(format!(
+                    "[ES5] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'se'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
+            // '(' expected after a 'se' keyword, but and 'id' or a 'num' was found
+            6 => {
+                self.token_buffer.push(Token::new(
+                    String::from("ab_p"),
+                    Some(String::from("(")),
+                    None,
+                ));
+
+                self.error_msgs.push(format!(
+                    "[ES6] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'se'",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return true;
+            }
+            // opr, opm, ')' or ';' expected after a 'id'
+            7 => {
+                self.error_msgs.push(format!(
+                    "[ES7] Erro sintático na linha {}, coluna {}: após um identificador deve vir um operador relacional, um operador aritimético, um ')' ou um ';'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return false;
+            }
+            // opr, opm, ')' or ';' expected after a 'num'
+            8 => {
+                self.error_msgs.push(format!(
+                    "[ES8] Erro sintático na linha {}, coluna {}: após um número deve vir um operador relacional, um operador aritimético, um ')' ou um ';'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return false;
+            }
+            // 'id'/'num' not found after a 'se ('
+            9 => {
+                let token = self.token_buffer.pop().unwrap();
+                if token.class.eq("fc_p") {
+                    // '()' cannot be recovered
+                    self.error_msgs.push(format!(
+                        "[ES9.1] Erro sintático na linha {}, coluna {}: encontrado um () após a palavra reservada 'se'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                    return false;
+                } else {
+                    self.error_msgs.push(format!(
+                        "[ES9.2] Erro sintático na linha {}, coluna {}: esperado um 'id' ou um 'num' após um 'se ('\n    NOTA: o token '{}' foi removido",
+                        scanner.get_row(),
+                        scanner.get_col(),
+                        token.lexeme.unwrap()
+                    ));
+                    return true;
+                }
+            }
+            // 'opr' not found after the 1st argument in a relacional expression
+            10 => {
+                self.error_msgs.push(format!(
+                    "[ES10] Erro sintático na linha {}, coluna {}: não encontrado '<', '>', '>=', '<=', '=' ou '<>' após o primeiro argumento de uma expressão relacional\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return false;
+            }
+            // 'num' nor 'id' found after a 'opr'
+            11 => {
+                self.error_msgs.push(format!(
+                    "[ES11] Erro sintático na linha {}, coluna {}: esperado um 'num' ou um 'id' após um operador relacional\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return false;
+            }
+            // opr, opm or ';' found after a relacional expression
+            12 => {
+                let token = self.token_buffer.pop();
+
+                self.error_msgs.push(format!(
+                    "[ES12] Erro sintático na linha {}, coluna {}: após uma expressão relacional, é esperado um ')'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
+            // some token but not 'entao' ater a 'se ( EXP_R )'
+            13 => {
+                let token = self.token_buffer.pop();
+
+                self.error_msgs.push(format!(
+                    "[ES13] Erro sintático na linha {}, coluna {}: esperado a palavra reservada 'entao' após a expressão relacional de uma estrutura condicional\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
                     token.unwrap().lexeme.unwrap()
@@ -176,7 +291,7 @@ impl Parser {
             }
             _ => {
                 self.error_msgs.push(format!(
-                    "Erro sintático na linha {}, coluna {}",
+                    "[ES0] Erro sintático na linha {}, coluna {}\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
                 ));
