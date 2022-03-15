@@ -228,7 +228,9 @@ impl Parser {
             }
             // 'id'/'num' not found after a 'se ('
             9 => {
+                // remove the wrong token
                 let token = self.token_buffer.pop().unwrap();
+
                 if token.class.eq("fc_p") {
                     // '()' cannot be recovered
                     self.error_msgs.push(format!(
@@ -267,6 +269,7 @@ impl Parser {
             }
             // opr, opm or ';' found after a relacional expression
             12 => {
+                // remove the wrong token
                 let token = self.token_buffer.pop();
 
                 self.error_msgs.push(format!(
@@ -279,6 +282,7 @@ impl Parser {
             }
             // some token but not 'entao' ater a 'se ( EXP_R )'
             13 => {
+                // remove the wrong token
                 let token = self.token_buffer.pop();
 
                 self.error_msgs.push(format!(
@@ -288,6 +292,76 @@ impl Parser {
                     token.unwrap().lexeme.unwrap()
                 ));
                 return true;
+            }
+            // 'leia', 'escreva', 'id', 'se' or 'fimse' a 'entao'
+            14 => {
+                // remove the wrong token
+                let token = self.token_buffer.pop();
+
+                self.error_msgs.push(format!(
+                    "[ES14] Erro sintático na linha {}, coluna {}: esperado 'leia', 'escreva', 'id', 'se' ou 'fimse' após a palavra reservada 'entao'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
+            // '(' expected after a 'repita' keyword
+            15 => {
+                // remove the wrong token
+                let token = self.token_buffer.pop();
+
+                self.token_buffer.push(Token::new(
+                    String::from("ab_p"),
+                    Some(String::from("(")),
+                    None,
+                ));
+
+                self.error_msgs.push(format!(
+                    "[ES15] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'repita'\n    NOTA: o token '{}' foi removido",
+                    scanner.get_row(),
+                    scanner.get_col(),
+                    token.unwrap().lexeme.unwrap()
+                ));
+                return true;
+            }
+            // '(' expected after a 'repita' keyword, but and 'id' or a 'num' was found
+            16 => {
+                self.token_buffer.push(Token::new(
+                    String::from("ab_p"),
+                    Some(String::from("(")),
+                    None,
+                ));
+
+                self.error_msgs.push(format!(
+                    "[ES16] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'repita'",
+                    scanner.get_row(),
+                    scanner.get_col()
+                ));
+                return true;
+            }
+            // 'id'/'num' not found after a 'repita ('
+            17 => {
+                // remove the wrong token
+                let token = self.token_buffer.pop().unwrap();
+
+                if token.class.eq("fc_p") {
+                    // '()' cannot be recovered
+                    self.error_msgs.push(format!(
+                        "[ES17.1] Erro sintático na linha {}, coluna {}: encontrado um () após a palavra reservada 'repita'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                    return false;
+                } else {
+                    self.error_msgs.push(format!(
+                        "[ES17.2] Erro sintático na linha {}, coluna {}: esperado um 'id' ou um 'num' após um 'repita ('\n    NOTA: o token '{}' foi removido",
+                        scanner.get_row(),
+                        scanner.get_col(),
+                        token.lexeme.unwrap()
+                    ));
+                    return true;
+                }
             }
             _ => {
                 self.error_msgs.push(format!(
