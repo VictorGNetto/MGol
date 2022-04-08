@@ -1,15 +1,17 @@
 use super::grammar::Grammar;
+use super::obj_file::ObjFile;
 use super::scanner::Scanner;
 use super::slr_table::{ActionTable, GotoTable, SlrAction};
+use super::symbol_table::SymbolTable;
 use super::token::Token;
 
-struct Stack {
+struct SyntaticStack {
     stack: Vec<u8>,
 }
 
-impl Stack {
-    fn new() -> Stack {
-        Stack { stack: vec![0] }
+impl SyntaticStack {
+    fn new() -> SyntaticStack {
+        SyntaticStack { stack: vec![0] }
     }
 
     fn top(&self) -> u8 {
@@ -27,52 +29,87 @@ impl Stack {
     }
 }
 
+struct SemanticStack {
+    stack: Vec<(String, String, String)>, // Vec<(Item, lexeme, tk+_ype)>
+}
+
+impl SemanticStack {
+    fn new() -> SemanticStack {
+        SemanticStack { stack: Vec::new() }
+    }
+
+    fn top(&self) -> &(String, String, String) {
+        &self.stack[self.stack.len() - 1]
+    }
+
+    fn push(&mut self, attrs: (String, String, String)) {
+        self.stack.push(attrs);
+    }
+
+    fn pop(&mut self, count: u8) {
+        for _ in 0..count {
+            self.stack.pop();
+        }
+    }
+}
+
 pub struct Parser {
-    stack: Stack,
+    syntatic_stack: SyntaticStack,
     grammar: Grammar,
     action_table: ActionTable,
     goto_table: GotoTable,
     token_buffer: Vec<Token>,
-    error_msgs: Vec<String>,
+    syntatic_error_msgs: Vec<String>,
+    semantic_error_msgs: Vec<String>,
 }
 
 impl Parser {
     pub fn new() -> Parser {
         Parser {
-            stack: Stack::new(),
+            syntatic_stack: SyntaticStack::new(),
             grammar: Grammar::new(),
             action_table: ActionTable::new(),
             goto_table: GotoTable::new(),
             token_buffer: Vec::new(),
-            error_msgs: Vec::new(),
+            syntatic_error_msgs: Vec::new(),
+            semantic_error_msgs: Vec::new(),
         }
     }
 
     pub fn parse(&mut self, scanner: &mut Scanner) {
+        let mut obj_file = ObjFile::new();
+        let mut semantic_stack = SemanticStack::new();
+
         let mut token = self.next_token(scanner);
         let mut a = token.class.clone();
         loop {
-            let s = self.stack.top();
+            let s = self.syntatic_stack.top();
             let action = self.action_table.get(&(s, a.clone()));
             match action {
                 SlrAction::S(t) => {
-                    self.stack.push(t);
+                    self.syntatic_stack.push(t);
                     token = self.next_token(scanner);
                     a = token.class.clone();
                 }
                 SlrAction::R(r) => {
                     let rule = self.grammar.get_rule(r as usize);
                     rule.show();
+                    self.run_semantic_rule(
+                        r,
+                        &mut obj_file,
+                        &mut semantic_stack,
+                        &mut scanner.symbol_table,
+                    );
                     #[allow(non_snake_case)]
                     let A = rule.left;
                     let beta = rule.right;
-                    self.stack.pop(beta.len() as u8);
-                    let t = self.stack.top();
-                    self.stack.push(self.goto_table.get(&(t, A.text.clone())));
+                    self.syntatic_stack.pop(beta.len() as u8);
+                    let t = self.syntatic_stack.top();
+                    self.syntatic_stack
+                        .push(self.goto_table.get(&(t, A.text.clone())));
                 }
                 SlrAction::Acc => break,
                 SlrAction::E(e) => {
-                    println!("ERRO >>> {:?}", &(s, a.clone()));
                     // put the last read Token back into the input
                     self.token_buffer.push(token);
 
@@ -89,8 +126,13 @@ impl Parser {
             }
         }
 
-        scanner.show_error_msgs();
-        self.show_error_msgs();
+        let lexical_errors = scanner.show_lexical_error_msgs();
+        let syntatic_errors = self.show_syntatic_error_msgs();
+        let semantic_errors = self.show_semantic_error_msgs();
+
+        if lexical_errors + syntatic_errors + semantic_errors == 0 {
+            obj_file.create();
+        }
     }
 
     fn next_token(&mut self, scanner: &mut Scanner) -> Token {
@@ -98,6 +140,48 @@ impl Parser {
             return scanner.safe_scan();
         } else {
             return self.token_buffer.pop().unwrap();
+        }
+    }
+
+    fn run_semantic_rule(
+        &self,
+        r: u8,
+        obj_file: &mut ObjFile,
+        semantic_stack: &mut SemanticStack,
+        symbol_table: &mut SymbolTable,
+    ) {
+        match r {
+            8 => {
+                let token = symbol_table.get(String::from("inteiro")).unwrap();
+                semantic_stack.push((
+                    String::from("TIPO"),
+                    String::from(""),
+                    token.tk_type.unwrap(),
+                ));
+                let (_, _, tk_type) = semantic_stack.top();
+                obj_file.print(tk_type.clone());
+            }
+            9 => {
+                let token = symbol_table.get(String::from("real")).unwrap();
+                semantic_stack.push((
+                    String::from("TIPO"),
+                    String::from(""),
+                    token.tk_type.unwrap(),
+                ));
+                let (_, _, tk_type) = semantic_stack.top();
+                obj_file.print(tk_type.clone());
+            }
+            10 => {
+                let token = symbol_table.get(String::from("literal")).unwrap();
+                semantic_stack.push((
+                    String::from("TIPO"),
+                    String::from(""),
+                    token.tk_type.unwrap(),
+                ));
+                let (_, _, tk_type) = semantic_stack.top();
+                obj_file.print(tk_type.clone());
+            }
+            _ => (),
         }
     }
 
@@ -126,7 +210,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES1] Erro sintático na linha {}, coluna {}: nenhum código deve vir após a palavra reservada 'fim'",
                     scanner.get_row(),
                     scanner.get_col()
@@ -142,7 +226,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES2] Erro sintático na linha {}, coluna {}: ausência de ';'",
                     scanner.get_row(),
                     scanner.get_col()
@@ -154,7 +238,7 @@ impl Parser {
                 // remove one ';' at a time
                 self.token_buffer.pop();
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES3] Erro sintático na linha {}, coluna {}: múltiplos ';' na sequência",
                     scanner.get_row(),
                     scanner.get_col()
@@ -166,7 +250,7 @@ impl Parser {
                 // remove the wrong token
                 let token = self.token_buffer.pop();
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES4] Erro sintático na linha {}, coluna {}: token inválido após um ';'\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -185,7 +269,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES5] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'se'\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -201,7 +285,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES6] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'se'",
                     scanner.get_row(),
                     scanner.get_col()
@@ -210,7 +294,7 @@ impl Parser {
             }
             // opr, opm, ')' or ';' expected after a 'id'
             7 => {
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES7] Erro sintático na linha {}, coluna {}: após um identificador deve vir um operador relacional, um operador aritimético, um ')' ou um ';'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
@@ -219,7 +303,7 @@ impl Parser {
             }
             // opr, opm, ')' or ';' expected after a 'num'
             8 => {
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES8] Erro sintático na linha {}, coluna {}: após um número deve vir um operador relacional, um operador aritimético, um ')' ou um ';'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
@@ -233,14 +317,14 @@ impl Parser {
 
                 if token.class.eq("fc_p") {
                     // '()' cannot be recovered
-                    self.error_msgs.push(format!(
+                    self.syntatic_error_msgs.push(format!(
                         "[ES9.1] Erro sintático na linha {}, coluna {}: encontrado um () após a palavra reservada 'se'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                         scanner.get_row(),
                         scanner.get_col()
                     ));
                     return false;
                 } else {
-                    self.error_msgs.push(format!(
+                    self.syntatic_error_msgs.push(format!(
                         "[ES9.2] Erro sintático na linha {}, coluna {}: esperado um 'id' ou um 'num' após um 'se ('\n    NOTA: o token '{}' foi removido",
                         scanner.get_row(),
                         scanner.get_col(),
@@ -251,7 +335,7 @@ impl Parser {
             }
             // 'opr' not found after the 1st argument in a relacional expression
             10 => {
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES10] Erro sintático na linha {}, coluna {}: não encontrado '<', '>', '>=', '<=', '=' ou '<>' após o primeiro argumento de uma expressão relacional\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
@@ -260,7 +344,7 @@ impl Parser {
             }
             // 'num' nor 'id' found after a 'opr'
             11 => {
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES11] Erro sintático na linha {}, coluna {}: esperado um 'num' ou um 'id' após um operador relacional\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
@@ -272,7 +356,7 @@ impl Parser {
                 // remove the wrong token
                 let token = self.token_buffer.pop();
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES12] Erro sintático na linha {}, coluna {}: após uma expressão relacional, é esperado um ')'\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -285,7 +369,7 @@ impl Parser {
                 // remove the wrong token
                 let token = self.token_buffer.pop();
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES13] Erro sintático na linha {}, coluna {}: esperado a palavra reservada 'entao' após a expressão relacional de uma estrutura condicional\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -298,7 +382,7 @@ impl Parser {
                 // remove the wrong token
                 let token = self.token_buffer.pop();
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES14] Erro sintático na linha {}, coluna {}: esperado 'leia', 'escreva', 'id', 'se' ou 'fimse' após a palavra reservada 'entao'\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -317,7 +401,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES15] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'repita'\n    NOTA: o token '{}' foi removido",
                     scanner.get_row(),
                     scanner.get_col(),
@@ -333,7 +417,7 @@ impl Parser {
                     None,
                 ));
 
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES16] Erro sintático na linha {}, coluna {}: esperado um '(' após a palavra reservada 'repita'",
                     scanner.get_row(),
                     scanner.get_col()
@@ -347,14 +431,14 @@ impl Parser {
 
                 if token.class.eq("fc_p") {
                     // '()' cannot be recovered
-                    self.error_msgs.push(format!(
+                    self.syntatic_error_msgs.push(format!(
                         "[ES17.1] Erro sintático na linha {}, coluna {}: encontrado um () após a palavra reservada 'repita'\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                         scanner.get_row(),
                         scanner.get_col()
                     ));
                     return false;
                 } else {
-                    self.error_msgs.push(format!(
+                    self.syntatic_error_msgs.push(format!(
                         "[ES17.2] Erro sintático na linha {}, coluna {}: esperado um 'id' ou um 'num' após um 'repita ('\n    NOTA: o token '{}' foi removido",
                         scanner.get_row(),
                         scanner.get_col(),
@@ -364,7 +448,7 @@ impl Parser {
                 }
             }
             _ => {
-                self.error_msgs.push(format!(
+                self.syntatic_error_msgs.push(format!(
                     "[ES0] Erro sintático na linha {}, coluna {}\n    NOTA: não é possível recuperar deste erro e portanto a análise foi interrompida",
                     scanner.get_row(),
                     scanner.get_col()
@@ -374,8 +458,8 @@ impl Parser {
         }
     }
 
-    fn show_error_msgs(&self) {
-        let n = self.error_msgs.len();
+    fn show_syntatic_error_msgs(&self) -> u8 {
+        let n = self.syntatic_error_msgs.len();
         match n {
             0 => (),
             1 => println!("Foi encontrado 1 erro sintático"),
@@ -383,9 +467,28 @@ impl Parser {
         }
 
         for i in 0..n {
-            let msg = &self.error_msgs[i];
+            let msg = &self.syntatic_error_msgs[i];
             println!("# ERRO {}", i + 1);
             println!("    {}", msg);
         }
+
+        n as u8
+    }
+
+    fn show_semantic_error_msgs(&self) -> u8 {
+        let n = self.semantic_error_msgs.len();
+        match n {
+            0 => (),
+            1 => println!("Foi encontrado 1 erro semântico"),
+            _ => println!("Foi encontrado {} erros semânticos", n),
+        }
+
+        for i in 0..n {
+            let msg = &self.semantic_error_msgs[i];
+            println!("# ERRO {}", i + 1);
+            println!("    {}", msg);
+        }
+
+        n as u8
     }
 }

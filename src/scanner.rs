@@ -14,7 +14,7 @@ pub struct Scanner {
     file: BufReader<File>,
     line: Vec<char>,
     cursor: (usize, usize), // (row, col)
-    symbol_table: SymbolTable,
+    pub symbol_table: SymbolTable,
     error_msgs: Vec<String>,
 }
 
@@ -172,7 +172,7 @@ impl Scanner {
         }
     }
 
-    pub fn show_error_msgs(&self) {
+    pub fn show_lexical_error_msgs(&self) -> u8 {
         let n = self.error_msgs.len();
         match n {
             0 => (),
@@ -185,6 +185,8 @@ impl Scanner {
             println!("# ERRO {}", i + 1);
             println!("    {}", msg);
         }
+
+        n as u8
     }
 
     // A Token fabric
