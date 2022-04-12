@@ -6,9 +6,11 @@ typedef double real;
 
 void main(void)
 {
-literal
-inteiro
-inteiro
-real
+literal A;
+inteiro B;
+inteiro D;
+real C;
+T0 = D * D;
+B = T0;
     return 0;
 }

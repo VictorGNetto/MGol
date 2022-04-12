@@ -2,7 +2,6 @@ use super::grammar::Grammar;
 use super::obj_file::ObjFile;
 use super::scanner::Scanner;
 use super::slr_table::{ActionTable, GotoTable, SlrAction};
-use super::symbol_table::SymbolTable;
 use super::token::Token;
 
 struct SyntaticStack {
@@ -30,12 +29,16 @@ impl SyntaticStack {
 }
 
 struct SemanticStack {
-    stack: Vec<(String, String, String)>, // Vec<(Item, lexeme, tk+_ype)>
+    stack: Vec<(String, String, String)>, // Vec<(Item, lexeme, tk_type)>
 }
 
 impl SemanticStack {
     fn new() -> SemanticStack {
-        SemanticStack { stack: Vec::new() }
+        SemanticStack {
+            // a never empty stack: to not panic in top function,
+            // we make sure that stack.len() > 0
+            stack: vec![(String::new(), String::new(), String::new())],
+        }
     }
 
     fn top(&self) -> &(String, String, String) {
@@ -81,6 +84,8 @@ impl Parser {
         let mut semantic_stack = SemanticStack::new();
 
         let mut token = self.next_token(scanner);
+        let mut last_token = Token::new(String::new(), None, None);
+        let mut last_seen_operator = String::new();
         let mut a = token.class.clone();
         loop {
             let s = self.syntatic_stack.top();
@@ -88,17 +93,31 @@ impl Parser {
             match action {
                 SlrAction::S(t) => {
                     self.syntatic_stack.push(t);
+                    last_token = token;
                     token = self.next_token(scanner);
+                    if String::from("id").eq(&token.class) {
+                        semantic_stack.push((
+                            String::from("id"),
+                            token.lexeme.as_ref().unwrap().clone(),
+                            String::new(),
+                        ));
+                    }
+                    if String::from("opr").eq(&token.class) || String::from("opm").eq(&token.class)
+                    {
+                        last_seen_operator = token.lexeme.as_ref().unwrap().clone();
+                    }
                     a = token.class.clone();
                 }
                 SlrAction::R(r) => {
                     let rule = self.grammar.get_rule(r as usize);
-                    rule.show();
+                    // rule.show();
                     self.run_semantic_rule(
                         r,
+                        scanner,
                         &mut obj_file,
                         &mut semantic_stack,
-                        &mut scanner.symbol_table,
+                        &last_token,
+                        last_seen_operator.clone(),
                     );
                     #[allow(non_snake_case)]
                     let A = rule.left;
@@ -144,15 +163,39 @@ impl Parser {
     }
 
     fn run_semantic_rule(
-        &self,
+        &mut self,
         r: u8,
+        scanner: &mut Scanner,
         obj_file: &mut ObjFile,
         semantic_stack: &mut SemanticStack,
-        symbol_table: &mut SymbolTable,
+        token: &Token,
+        last_seen_operator: String,
     ) {
+        static mut TEMP_VAR: u8 = 0;
+        println!(">>> {}", r);
+
         match r {
+            6 => {
+                // print ';\n' in the obj file
+                obj_file.print(String::from(";\n"));
+            }
+            7 => {
+                // take TIPO.tk_type from the semantic stack
+                let (_, _, tk_type) = semantic_stack.top();
+                let tk_type = tk_type.clone();
+                semantic_stack.pop(1);
+
+                // id.t_type = TIPO.type
+                let mut id = Token::new_from_ref(token);
+                id.tk_type = Some(tk_type);
+                let lexeme = token.lexeme.as_ref().unwrap().clone();
+                scanner.symbol_table.update(lexeme.clone(), id);
+
+                // print the id.lexeme in the obj file
+                obj_file.print(lexeme);
+            }
             8 => {
-                let token = symbol_table.get(String::from("inteiro")).unwrap();
+                let token = scanner.symbol_table.get(String::from("inteiro")).unwrap();
                 semantic_stack.push((
                     String::from("TIPO"),
                     String::from(""),
@@ -160,9 +203,10 @@ impl Parser {
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
                 obj_file.print(tk_type.clone());
+                obj_file.print(String::from(" "));
             }
             9 => {
-                let token = symbol_table.get(String::from("real")).unwrap();
+                let token = scanner.symbol_table.get(String::from("real")).unwrap();
                 semantic_stack.push((
                     String::from("TIPO"),
                     String::from(""),
@@ -170,9 +214,10 @@ impl Parser {
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
                 obj_file.print(tk_type.clone());
+                obj_file.print(String::from(" "));
             }
             10 => {
-                let token = symbol_table.get(String::from("literal")).unwrap();
+                let token = scanner.symbol_table.get(String::from("literal")).unwrap();
                 semantic_stack.push((
                     String::from("TIPO"),
                     String::from(""),
@@ -180,6 +225,194 @@ impl Parser {
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
                 obj_file.print(tk_type.clone());
+                obj_file.print(String::from(" "));
+            }
+            12 => {
+                // take id.lexeme from the semantic stack
+                let (_, lexeme, _) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                semantic_stack.pop(1);
+                let id = scanner.symbol_table.get(lexeme).unwrap();
+
+                if id.tk_type != None {
+                    if String::from("inteiro").eq(id.tk_type.as_ref().unwrap()) {
+                        obj_file.print(format!(
+                            "scanf(\"%d\", &{});\n",
+                            id.lexeme.as_ref().unwrap()
+                        ));
+                    } else if String::from("real").eq(id.tk_type.as_ref().unwrap()) {
+                        obj_file.print(format!(
+                            "scanf(\"%lf\", &{});\n",
+                            id.lexeme.as_ref().unwrap()
+                        ));
+                    } else {
+                        // else if String::from("literal").eq(id.tk_type.as_ref().unwrap())
+                        obj_file
+                            .print(format!("scanf(\"%s\", {});\n", id.lexeme.as_ref().unwrap()));
+                    }
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe1] Erro: Variável '{}' não declarada na próximo à linha {}, coluna {}",
+                        id.lexeme.as_ref().unwrap(),
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            13 => {
+                // take ARG.lexeme from the semantic stack
+                let (_, lexeme, _) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                semantic_stack.pop(1);
+                obj_file.print(format!("printf({});\n", lexeme));
+            }
+            14 => {
+                let lit = Token::new_from_ref(token);
+                semantic_stack.push((
+                    String::from("ARG"),
+                    lit.lexeme.unwrap(),
+                    lit.tk_type.unwrap(),
+                ));
+            }
+            15 => {
+                let num = Token::new_from_ref(token);
+                let tk_type = num.tk_type.as_ref().unwrap().clone();
+                let mut _lexeme = String::new();
+                if String::from("inteiro").eq(&tk_type) {
+                    _lexeme = format!("\"%d\", {}", num.lexeme.unwrap());
+                } else {
+                    // String::from("real").eq(&tk_type)
+                    _lexeme = format!("\"%lf\", {}", num.lexeme.unwrap());
+                }
+                semantic_stack.push((String::from("ARG"), _lexeme, num.tk_type.unwrap()));
+            }
+            16 => {
+                let id = Token::new_from_ref(token);
+                let lexeme = id.lexeme.as_ref().unwrap().clone();
+                let id_tk_type = scanner.symbol_table.get(lexeme).unwrap().tk_type;
+
+                if id_tk_type != None {
+                    let mut _lexeme = String::new();
+                    if String::from("inteiro").eq(id_tk_type.as_ref().unwrap()) {
+                        _lexeme = format!("\"%d\", {}", id.lexeme.unwrap());
+                    } else if String::from("real").eq(id_tk_type.as_ref().unwrap()) {
+                        _lexeme = format!("\"%lf\", {}", id.lexeme.unwrap());
+                    } else {
+                        // else if String::from("literal").eq(id_tk_type.as_ref().unwrap())
+                        _lexeme = format!("\"%s\", {}", id.lexeme.unwrap());
+                    }
+                    semantic_stack.push((String::from("ARG"), _lexeme, id.tk_type.unwrap()));
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe2] Erro: Variável '{}' não declarada na linha {}, coluna {}",
+                        id.lexeme.as_ref().unwrap(),
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            18 => {
+                // take ld.lexeme from the semantic stack
+                let (_, ld_lexeme, ld_tk_type) = semantic_stack.top();
+                let ld_lexeme = ld_lexeme.clone();
+                let ld_tk_type = ld_tk_type.clone();
+                semantic_stack.pop(1);
+
+                // take id.lexeme from the semantic stack
+                let (_, id_lexeme, _) = semantic_stack.top();
+                let id_lexeme = id_lexeme.clone();
+                semantic_stack.pop(1);
+                let id = scanner.symbol_table.get(id_lexeme).unwrap();
+
+                if id.tk_type != None {
+                    if ld_tk_type.eq(id.tk_type.as_ref().unwrap()) {
+                        obj_file.print(format!(
+                            "{} = {};\n",
+                            id.lexeme.as_ref().unwrap(),
+                            ld_lexeme
+                        ));
+                    } else {
+                        self.semantic_error_msgs.push(format!(
+                            "[ESe3] Erro: Tipos diferentes para atribuição na linha {}, coluna {}",
+                            scanner.get_row(),
+                            scanner.get_col()
+                        ));
+                    }
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe1] Erro: Variável '{}' não declarada na próximo à linha {}, coluna {}",
+                        id.lexeme.as_ref().unwrap(),
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            19 => {
+                // take OPRD.lexeme and OPRD.tk_type from the semantic stack twice
+                let (_, lexeme, tk_type) = semantic_stack.top();
+                let lexeme1 = lexeme.clone();
+                let tk_type1 = tk_type.clone();
+                semantic_stack.pop(1);
+
+                let (_, lexeme, tk_type) = semantic_stack.top();
+                let lexeme2 = lexeme.clone();
+                let tk_type2 = tk_type.clone();
+                semantic_stack.pop(1);
+
+                if tk_type1.eq(&tk_type2) && String::from("literal").ne(&tk_type1) {
+                    let mut _temp_var = 0;
+                    unsafe {
+                        _temp_var = TEMP_VAR;
+                        TEMP_VAR += 1;
+                    }
+                    semantic_stack.push((String::from("LD"), format!("T{}", _temp_var), tk_type1));
+
+                    obj_file.print(format!("T{} = {} {} {};\n", _temp_var, lexeme2, last_seen_operator, lexeme1));
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe4] Erro: Operandos com tipos incompatíveis na linha {}, coluna {}",
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            20 => {
+                // take OPRD.lexeme and OPRD.tk_type from the semantic stack once
+                let (_, lexeme, tk_type) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                let tk_type = tk_type.clone();
+                semantic_stack.pop(1);
+
+                semantic_stack.push((String::from("LD"), lexeme, tk_type));
+            }
+            21 => {
+                // take id.lexeme from the semantic stack
+                let (_, lexeme, _) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                semantic_stack.pop(1);
+                let id = scanner.symbol_table.get(lexeme).unwrap();
+
+                if id.tk_type != None {
+                    semantic_stack.push((
+                        String::from("OPRD"),
+                        token.lexeme.as_ref().unwrap().clone(),
+                        token.tk_type.as_ref().unwrap().clone(),
+                    ));
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe2] Erro: Variável '{}' não declarada na linha {}, coluna {}",
+                        id.lexeme.as_ref().unwrap(),
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            22 => {
+                semantic_stack.push((
+                    String::from("OPRD"),
+                    token.lexeme.as_ref().unwrap().clone(),
+                    token.tk_type.as_ref().unwrap().clone(),
+                ));
             }
             _ => (),
         }

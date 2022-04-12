@@ -32,7 +32,7 @@ impl ObjFile {
         writeln!(file, "{{");
 
         for line in &self.content {
-            writeln!(file, "{}", line);
+            write!(file, "{}", line);
         }
 
         writeln!(file, "    return 0;");
