@@ -1,5 +1,5 @@
 use super::grammar::Grammar;
-use super::obj_file::ObjFile;
+use super::obj_file::{ObjFile, TempVarType};
 use super::scanner::Scanner;
 use super::slr_table::{ActionTable, GotoTable, SlrAction};
 use super::token::Token;
@@ -28,6 +28,7 @@ impl SyntaticStack {
     }
 }
 
+#[derive(Debug)]
 struct SemanticStack {
     stack: Vec<(String, String, String)>, // Vec<(Item, lexeme, tk_type)>
 }
@@ -110,7 +111,7 @@ impl Parser {
                 }
                 SlrAction::R(r) => {
                     let rule = self.grammar.get_rule(r as usize);
-                    // rule.show();
+                    rule.show();
                     self.run_semantic_rule(
                         r,
                         scanner,
@@ -172,9 +173,14 @@ impl Parser {
         last_seen_operator: String,
     ) {
         static mut TEMP_VAR: u8 = 0;
-        println!(">>> {}", r);
+
+        // println!(">>> {}", r);
+        // println!("{:?}", semantic_stack);
 
         match r {
+            5 => {
+                obj_file.print(format!("\n"));
+            }
             6 => {
                 // print ';\n' in the obj file
                 obj_file.print(String::from(";\n"));
@@ -183,7 +189,7 @@ impl Parser {
                 // take TIPO.tk_type from the semantic stack
                 let (_, _, tk_type) = semantic_stack.top();
                 let tk_type = tk_type.clone();
-                semantic_stack.pop(1);
+                semantic_stack.pop(2);
 
                 // id.t_type = TIPO.type
                 let mut id = Token::new_from_ref(token);
@@ -202,8 +208,7 @@ impl Parser {
                     token.tk_type.unwrap(),
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
-                obj_file.print(tk_type.clone());
-                obj_file.print(String::from(" "));
+                obj_file.print(format!("    {} ", tk_type.clone()));
             }
             9 => {
                 let token = scanner.symbol_table.get(String::from("real")).unwrap();
@@ -213,8 +218,7 @@ impl Parser {
                     token.tk_type.unwrap(),
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
-                obj_file.print(tk_type.clone());
-                obj_file.print(String::from(" "));
+                obj_file.print(format!("    {} ", tk_type.clone()));
             }
             10 => {
                 let token = scanner.symbol_table.get(String::from("literal")).unwrap();
@@ -224,8 +228,7 @@ impl Parser {
                     token.tk_type.unwrap(),
                 ));
                 let (_, _, tk_type) = semantic_stack.top();
-                obj_file.print(tk_type.clone());
-                obj_file.print(String::from(" "));
+                obj_file.print(format!("    {} ", tk_type.clone()));
             }
             12 => {
                 // take id.lexeme from the semantic stack
@@ -237,18 +240,20 @@ impl Parser {
                 if id.tk_type != None {
                     if String::from("inteiro").eq(id.tk_type.as_ref().unwrap()) {
                         obj_file.print(format!(
-                            "scanf(\"%d\", &{});\n",
+                            "    scanf(\"%d\", &{});\n",
                             id.lexeme.as_ref().unwrap()
                         ));
                     } else if String::from("real").eq(id.tk_type.as_ref().unwrap()) {
                         obj_file.print(format!(
-                            "scanf(\"%lf\", &{});\n",
+                            "    scanf(\"%lf\", &{});\n",
                             id.lexeme.as_ref().unwrap()
                         ));
                     } else {
                         // else if String::from("literal").eq(id.tk_type.as_ref().unwrap())
-                        obj_file
-                            .print(format!("scanf(\"%s\", {});\n", id.lexeme.as_ref().unwrap()));
+                        obj_file.print(format!(
+                            "    scanf(\"%s\", {});\n",
+                            id.lexeme.as_ref().unwrap()
+                        ));
                     }
                 } else {
                     self.semantic_error_msgs.push(format!(
@@ -264,7 +269,7 @@ impl Parser {
                 let (_, lexeme, _) = semantic_stack.top();
                 let lexeme = lexeme.clone();
                 semantic_stack.pop(1);
-                obj_file.print(format!("printf({});\n", lexeme));
+                obj_file.print(format!("    printf({});\n", lexeme));
             }
             14 => {
                 let lit = Token::new_from_ref(token);
@@ -322,16 +327,19 @@ impl Parser {
                 let (_, id_lexeme, _) = semantic_stack.top();
                 let id_lexeme = id_lexeme.clone();
                 semantic_stack.pop(1);
+                println!("Imhere{}", id_lexeme);
                 let id = scanner.symbol_table.get(id_lexeme).unwrap();
 
                 if id.tk_type != None {
                     if ld_tk_type.eq(id.tk_type.as_ref().unwrap()) {
                         obj_file.print(format!(
-                            "{} = {};\n",
+                            "    {} = {};\n",
                             id.lexeme.as_ref().unwrap(),
                             ld_lexeme
                         ));
                     } else {
+                        println!("### {}, {}", id.lexeme.as_ref().unwrap(), ld_lexeme);
+                        println!("### {}, {}", id.tk_type.as_ref().unwrap(), ld_tk_type);
                         self.semantic_error_msgs.push(format!(
                             "[ESe3] Erro: Tipos diferentes para atribuição na linha {}, coluna {}",
                             scanner.get_row(),
@@ -365,10 +373,32 @@ impl Parser {
                         _temp_var = TEMP_VAR;
                         TEMP_VAR += 1;
                     }
-                    semantic_stack.push((String::from("LD"), format!("T{}", _temp_var), tk_type1));
+                    println!("IMHERE");
+                    semantic_stack.push((String::from("LD"), format!("T{}", _temp_var), tk_type1.clone()));
 
-                    obj_file.print(format!("T{} = {} {} {};\n", _temp_var, lexeme2, last_seen_operator, lexeme1));
+                    if String::from("inteiro").eq(&tk_type1) {
+                        obj_file.add_temp_var(TempVarType::Int);
+                    } else {
+                        obj_file.add_temp_var(TempVarType::Real);
+                    }
+                    obj_file.print(format!(
+                        "    T{} = {} {} {};\n",
+                        _temp_var, lexeme2, last_seen_operator, lexeme1
+                    ));
                 } else {
+                    // put OPRDs back in the semantic stack
+                    semantic_stack.push((
+                        String::from("OPRD"),
+                        lexeme2,
+                        tk_type2,
+                    ));
+
+                    semantic_stack.push((
+                        String::from("OPRD"),
+                        lexeme1,
+                        tk_type1,
+                    ));
+
                     self.semantic_error_msgs.push(format!(
                         "[ESe4] Erro: Operandos com tipos incompatíveis na linha {}, coluna {}",
                         scanner.get_row(),
@@ -413,6 +443,80 @@ impl Parser {
                     token.lexeme.as_ref().unwrap().clone(),
                     token.tk_type.as_ref().unwrap().clone(),
                 ));
+            }
+            24 => {
+                obj_file.print(format!("    }}\n"));
+            }
+            25 => {
+                // remove Tx_expr from the stack
+                semantic_stack.pop(1);
+
+                // take EXP_R.lexeme from the semantic stack
+                let (_, lexeme, _) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                semantic_stack.pop(1);
+
+                obj_file.print(format!("    if ({}) {{\n", lexeme));
+            }
+            26 => {
+                // take OPRD.lexeme and OPRD.tk_type from the semantic stack twice
+                let (_, lexeme, tk_type) = semantic_stack.top();
+                let lexeme1 = lexeme.clone();
+                let tk_type1 = tk_type.clone();
+                semantic_stack.pop(1);
+
+                let (_, lexeme, tk_type) = semantic_stack.top();
+                let lexeme2 = lexeme.clone();
+                let tk_type2 = tk_type.clone();
+                semantic_stack.pop(1);
+
+                if String::from("literal").ne(&tk_type1) && String::from("literal").ne(&tk_type2) {
+                    let mut _temp_var = 0;
+                    unsafe {
+                        _temp_var = TEMP_VAR;
+                        TEMP_VAR += 1;
+                    }
+                    semantic_stack.push((
+                        String::from("EXP_R"),
+                        format!("T{}", _temp_var),
+                        String::new(),
+                    ));
+
+                    // insert Tx_expr in the stack
+                    semantic_stack.push((
+                        String::from("Tx_expr"),
+                        format!("T{} = {} {} {}", _temp_var, lexeme2, last_seen_operator, lexeme1),
+                        String::new(),
+                    ));
+
+                    obj_file.add_temp_var( TempVarType::Int);
+                    obj_file.print(format!(
+                        "    T{} = {} {} {};\n",
+                        _temp_var, lexeme2, last_seen_operator, lexeme1
+                    ));
+                } else {
+                    self.semantic_error_msgs.push(format!(
+                        "[ESe5] Erro: Operandos com tipos incompatíveis para comparação na linha {}, coluna {}",
+                        scanner.get_row(),
+                        scanner.get_col()
+                    ));
+                }
+            }
+            32 => {
+                obj_file.print(format!("    }}\n"));
+            }
+            33 => {
+                // take Tx_expr from the semantic stack
+                let (_, ex_expr, _) = semantic_stack.top();
+                let ex_expr = ex_expr.clone();
+                semantic_stack.pop(1);
+
+                // take EXP_R.lexeme from the semantic stack
+                let (_, lexeme, _) = semantic_stack.top();
+                let lexeme = lexeme.clone();
+                semantic_stack.pop(1);
+
+                obj_file.print(format!("    for(; {}; {}) {{\n", lexeme, ex_expr));
             }
             _ => (),
         }
